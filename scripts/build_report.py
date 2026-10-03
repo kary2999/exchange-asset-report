@@ -158,14 +158,20 @@ def g_weekend(ctx, arg):
     for s in sel(ctx, arg):
         w = ctx.symbols[s].get("weekend")
         if not w:
-            rows.append([esc(s)] + [MISSING] * 5)
+            why = ctx.symbols[s].get("weekend_skipped_reason")
+            if why:  # 脚本主动跳过（例如非 TradFi 永续）：写明原因，不要让作者去猜「数据缺失」的原因
+                rows.append([esc(s), '<span class="sub">不适用：%s</span>' % esc(why), "", "", "", ""])
+            else:
+                rows.append([esc(s)] + [MISSING] * 5)
             continue
         win = "%s ~ %s UTC，平日=数据内完整的 UTC 周一到周四（%d 天）" % (esc(w["window_utc"][0]), esc(w["window_utc"][1]), w["weekday_days"])
         rows.append([esc(s), "%.1f%%" % w["vol_ratio_pct"], "%.2f%%" % w["weekend_range_pct"],
                      "%.2f%%" % w["weekday_avg_daily_range_pct"],
                      num(w["reopen_gap_pct"], 2, "%"), usd(w["weekend_vol_per_h"]) + " / " + usd(w["weekday_vol_per_h"])])
-    if not win:
+    if not rows:
         return MISSING
+    if not win:
+        win = "无可计算的窗口"
     return '<p class="sub">休市窗口：%s。%s</p>' % (win, TAGS["{V}"]) + table(
         ["合约", "周末每小时成交 ÷ 平日", "周末高低差", "平日单日平均高低差", "窗口前收盘到窗口后开盘跳空", "周末/平日 每小时成交额"], rows)
 
@@ -235,6 +241,63 @@ def g_bstocks(ctx, arg):
         b["count"], "、".join(esc(x) for x in b["bases"]), esc(b["rule"]), esc(b["caveat"]))
 
 
+def g_scope(ctx, arg):
+    sv = ctx.first("survey")
+    if not sv:
+        return MISSING
+    rows = [[html.escape(e["scanned"]), "<code>%s</code>" % html.escape(e["endpoint"].replace("https://", "")),
+             str(e["count"]) if e.get("count") is not None else MISSING] for e in sv["scope"]]
+    out = '<p>本报告里所有「没有 X」的结论，范围<b>仅限</b>下面实际扫过的接口 %s</p>' % TAGS["{V}"]
+    out += table(["扫了什么", "接口", "数量"], rows)
+    out += "<p><b>没扫的：</b>%s。这些地方有没有，本报告不下结论。</p>" % "；".join(html.escape(x) for x in sv["not_scanned"])
+    return out
+
+
+def g_survey(ctx, arg):
+    sv = ctx.first("survey")
+    if not sv:
+        return MISSING
+    f, out = sv["fapi"], ""
+    kv = lambda d: [[html.escape(str(k)), str(v)] for k, v in d.items()]
+    out += "<h3>U 本位合约（共 %d 个）</h3>" % f["total"] + table(["合约类型 contractType", "数量"], kv(f["by_contract_type"]))
+    out += "<p>状态分布：%s；其中 SETTLING 共 %d 个，类型分布 %s</p>" % (
+        "、".join("%s %d" % kv_ for kv_ in f["by_status"].items()), f["settling_total"],
+        "、".join("%s %d" % kv_ for kv_ in f["settling_by_contract_type"].items()) or "无")
+    out += "<h3>TradFi 永续（共 %d 个）</h3>" % f["tradfi_total"] + table(["标的类型 underlyingType", "数量"], kv(f["tradfi_by_underlying_type"]))
+    out += "<p>保证金币种：%s；状态：%s</p>" % ("、".join("%s %d 个" % kv_ for kv_ in f["tradfi_margin_assets"].items()),
+                                       "、".join("%s %d" % kv_ for kv_ in f["tradfi_by_status"].items()))
+    out += "<h3>标的类型为 INDEX 的合约（%d 个）</h3>" % len(f["index_contracts"]) + table(
+        ["合约", "状态", "合约类型", "子类型"], [[x["symbol"], x["status"], x["contractType"], html.escape("、".join(x["subtypes"]))] for x in f["index_contracts"]])
+    out += "<h3>U 本位交割（季度）合约（%d 个）</h3>" % len(f["delivery_contracts"]) + table(
+        ["合约", "类型", "标的类型"], [[x["symbol"], x["contractType"], x["underlyingType"]] for x in f["delivery_contracts"]])
+    if sv.get("dapi"):
+        d = sv["dapi"]
+        out += "<h3>币本位合约（共 %d 个）</h3>" % d["total"] + table(["合约类型", "数量"], kv(d["by_contract_type"]))
+        out += "<p>标的类型：%s</p>" % "、".join("%s %d" % kv_ for kv_ in d["by_underlying_type"].items())
+    if sv.get("spot"):
+        out += "<p>现货交易对（TRADING）共 %d 个。</p>" % sv["spot"]["trading_symbols"]
+    if sv.get("eapi"):
+        out += "<p>币安自己的期权标的：%s。</p>" % html.escape("、".join(sv["eapi"]["underlyings"]))
+    names = ["U 本位：" + ("、".join("%s（%s）" % (x["symbol"], x["underlyingType"]) for x in f["name_scan"]) or "无")]
+    if sv.get("dapi"):
+        names.append("币本位：" + ("、".join(x["symbol"] for x in sv["dapi"]["name_scan"]) or "无"))
+    if sv.get("spot"):
+        names.append("现货：" + ("、".join(x["symbol"] for x in sv["spot"]["name_scan"]) or "无"))
+    out += '<p class="sub">名称扫描（NAS/SPX/US500/NDX/DJI/DAX/HSI/N225/VIX/DXY 等）命中：%s</p>' % html.escape("；".join(names))
+    return out
+
+
+def g_volume(ctx, arg):
+    sv = ctx.first("survey")
+    v = (sv or {}).get("fapi", {}).get("tradfi_volume_24h")
+    if not v:
+        return MISSING
+    out = '<p>TradFi 永续 24h 成交额合计 %s（%d 个合约）。%s</p>' % (usd(v["total_usd"]), v["n"], TAGS["{V}"])
+    out += table(["24h 成交额区间", "合约数"], [[k, str(n)] for k, n in v["buckets"].items()])
+    out += table(["成交额前十", "24h 成交额"], [[x["symbol"], usd(x["usd"])] for x in v["top10"]])
+    return out
+
+
 def g_missing(ctx, arg):
     miss = [m for s in ctx.snaps for m in s.get("missing", [])]
     if not miss:
@@ -244,7 +307,87 @@ def g_missing(ctx, arg):
 
 GEN = {"meta": g_meta, "inventory": g_inventory, "contracts": g_contracts, "constituents": g_constituents,
        "funding": g_funding, "weekend": g_weekend, "sessions": g_sessions, "basis": g_basis, "options": g_options,
-       "fiatpairs": g_fiat, "bstocks": g_bstocks, "missing": g_missing}
+       "fiatpairs": g_fiat, "bstocks": g_bstocks, "missing": g_missing,
+       "scope": g_scope, "survey": g_survey, "volume": g_volume}
+
+
+# ---------- 叙述里的内联取数：{{v:SYM.path|fmt}} 取合约字段，{{i:path|fmt}} 取盘点字段 ----------
+
+def _walk(obj, path):
+    toks = re.findall(r"\[[^\]]*\]|[^.\[\]]+", path)
+    for t in toks:
+        if obj is None:
+            return None
+        if t.startswith("["):
+            t = t[1:-1]
+        if isinstance(obj, dict):
+            if t not in obj:
+                return None
+            obj = obj[t]
+        elif isinstance(obj, list):
+            try:
+                obj = obj[int(t)]
+            except (ValueError, IndexError):
+                return None
+        else:
+            return None
+    return obj
+
+
+def _fmt(val, fmt):
+    if val is None:
+        return None
+    try:
+        if fmt == "usd":
+            return usd(float(val))
+        if fmt == "pct":      # 小数 -> 百分数（权重）
+            return "%.2f%%" % (float(val) * 100)
+        if fmt == "pctn":     # 已经是百分数
+            return "%.2f%%" % float(val)
+        if fmt == "bp":
+            return "%.1fbp" % float(val)
+        if fmt == "len":
+            return str(len(val))
+        if fmt == "int":
+            return "{:,}".format(int(round(float(val))))
+        if fmt in ("f1", "f2", "f3"):
+            return ("%." + fmt[1] + "f") % float(val)
+    except (TypeError, ValueError):
+        return None
+    return html.escape(str(val)) if not isinstance(val, float) else "%.4g" % val
+
+
+def resolve_inline(ctx, kind, path):
+    if kind == "i":
+        root = {}
+        for sn in ctx.snaps:
+            for k in ("survey", "inventory", "meta"):
+                if k in sn and k not in root:
+                    root[k] = sn[k]
+        return _walk(root, path)
+    sym, _, rest = path.partition(".")
+    d = ctx.spot_pairs.get(sym) if kind == "s" else ctx.symbols.get(sym)
+    if d is None:
+        return None
+    m = re.match(r"weight\[([^\]]+)\]$", rest)
+    if m:
+        key = m.group(1).lower()
+        cs = d.get("constituents")
+        if not cs:
+            return None
+        return sum(c["weight"] for c in cs if key in c["exchange"].lower())
+    return _walk(d, rest)
+
+
+def render_inline(text, ctx):
+    def rep(m):
+        kind, path, fmt = m.group(1), m.group(2).strip(), (m.group(3) or "raw")
+        out = _fmt(resolve_inline(ctx, kind, path), fmt)
+        if out is None:
+            print("警告：内联占位 {{%s:%s}} 取不到值，输出「数据缺失」" % (kind, path), file=sys.stderr)
+            return MISSING
+        return '<span class="val" data-src="%s:%s">%s</span>' % (kind, html.escape(path), out)
+    return re.sub(r"\{\{([vis]):([^}|]+)(?:\|([a-z0-9]+))?\}\}", rep, text)
 
 
 def render(narr, ctx):
@@ -261,6 +404,7 @@ def render(narr, ctx):
             return "<!--AUTO-BEGIN-->" + MISSING + "<!--AUTO-END-->"
     narr = re.sub(r"<!--GUIDE.*?-->", "", narr, flags=re.S)
     out = re.sub(r"<!--AUTO:([^>]*?)-->", rep, narr)
+    out = render_inline(out, ctx)
     for k, v in TAGS.items():
         out = out.replace(k, v)
     return out
@@ -289,7 +433,7 @@ def main():
     ctx = Ctx(snaps)
     narr = open(a.narrative, encoding="utf-8").read()
     body = render(narr, ctx)
-    left = re.findall(r"<!--AUTO:|\{[VGUI]\}", body)
+    left = re.findall(r"<!--AUTO:|\{[VGUI]\}|\{\{", body)
     if left:
         sys.exit("仍有未替换的占位符/标签：%s" % left[:5])
     nav = build_nav(body)
@@ -304,9 +448,9 @@ def main():
     css = open(os.path.join(HERE, "..", "templates", "style.css"), encoding="utf-8").read()
     page = ('<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-            '<meta name="snapshot-sha256" content="%s">\n<meta name="snapshot-fetched-utc" content="%s">\n'
+            '<meta name="snapshot-sha256" content="%s">\n<meta name="narrative-sha256" content="%s">\n<meta name="snapshot-fetched-utc" content="%s">\n'
             '<title>%s</title>\n<style>%s</style>\n</head>\n<body>\n<main>\n%s\n%s\n</main>\n</body>\n</html>\n'
-            % (h.hexdigest(), " / ".join(esc(s.get("meta", {}).get("fetched_at_utc", "未知")) for s in snaps), html.escape(a.title), css, body, sib))
+            % (h.hexdigest(), hashlib.sha256(narr.encode("utf-8")).hexdigest(), " / ".join(esc(s.get("meta", {}).get("fetched_at_utc", "未知")) for s in snaps), html.escape(a.title), css, body, sib))
     open(a.out, "w", encoding="utf-8").write(page)
     print("OK", a.out, "snapshot sha256", h.hexdigest()[:12])
 

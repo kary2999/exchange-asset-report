@@ -18,9 +18,10 @@ import urllib.error
 import urllib.request
 from zoneinfo import ZoneInfo
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 FAPI = "https://fapi.binance.com/fapi/v1/"
 FDATA = "https://fapi.binance.com/futures/data/"
+DAPI = "https://dapi.binance.com/dapi/v1/"
 SPOT = "https://api.binance.com/api/v3/"
 EAPI = "https://eapi.binance.com/eapi/v1/"
 ET = ZoneInfo("America/New_York")
@@ -230,6 +231,98 @@ def basis_stats(spot_rows, perp_rows, wk=None):
             "max_bp": round(max(allb), 2), "weekend_mean_bp": round(st.mean(wkb), 2) if wkb else None}
 
 
+NOT_SCANNED = ["币安 App / 官网页面", "币安公告与监管文件全文", "币安 Margin、Alpha、Convert、P2P、Earn 等其他入口",
+               "不同地区站点上的 CFD / 经纪商业务页面", "币安白标、Link 经纪商的商务条款（需向币安商务确认）"]
+
+
+def _count(items, key):
+    d = {}
+    for x in items:
+        k = x.get(key) or "?"
+        d[k] = d.get(k, 0) + 1
+    return dict(sorted(d.items(), key=lambda kv: -kv[1]))
+
+
+def build_survey(f, fapi_ex):
+    """全面盘点：不只看 TradFi。每个「没有 X」的结论只能引用这里实际扫过的范围。
+    返回 (survey, spot_info, eapi_info)。拿不到的部分记入 f.missing 并在 scope 里写明。"""
+    syms = fapi_ex["symbols"]
+    tradfi = [x for x in syms if x.get("contractType") == "TRADIFI_PERPETUAL"]
+    settling = [x for x in syms if x.get("status") == "SETTLING"]
+    fapi = {
+        "total": len(syms), "by_contract_type": _count(syms, "contractType"), "by_status": _count(syms, "status"),
+        "by_underlying_type": _count(syms, "underlyingType"),
+        "tradfi_total": len(tradfi), "tradfi_by_underlying_type": _count(tradfi, "underlyingType"),
+        "tradfi_by_status": _count(tradfi, "status"), "tradfi_margin_assets": _count(tradfi, "marginAsset"),
+        "settling_total": len(settling), "settling_by_contract_type": _count(settling, "contractType"),
+        "index_contracts": [{"symbol": x["symbol"], "status": x.get("status"), "contractType": x.get("contractType"),
+                             "subtypes": x.get("underlyingSubType", [])} for x in syms if x.get("underlyingType") == "INDEX"],
+        "delivery_contracts": [{"symbol": x["symbol"], "contractType": x["contractType"], "underlyingType": x.get("underlyingType")}
+                               for x in syms if x.get("contractType") in ("CURRENT_QUARTER", "NEXT_QUARTER")],
+        "name_scan": [{"symbol": x["symbol"], "underlyingType": x.get("underlyingType")}
+                      for x in syms if INDEX_NAME_PATTERN.search(x["symbol"])],
+    }
+    scope = [{"endpoint": FAPI + "exchangeInfo", "scanned": "U 本位合约（合约类型、标的类型、状态、保证金币种、名称扫描）", "count": len(syms)}]
+    t24 = f.get(FAPI + "ticker/24hr", "bulk ticker 24h")
+    if isinstance(t24, list):
+        qv = {x["symbol"]: fnum(x.get("quoteVolume")) for x in t24}
+        vols = [(x["symbol"], qv.get(x["symbol"])) for x in tradfi if qv.get(x["symbol"]) is not None]
+        edges = [("<10万", 1e5), ("10万~100万", 1e6), ("100万~1000万", 1e7), ("1000万~1亿", 1e8), (">=1亿", float("inf"))]
+        buckets, lo = {}, 0.0
+        for name, hi in edges:
+            buckets[name] = sum(1 for _, v in vols if lo <= v < hi)
+            lo = hi
+        fapi["tradfi_volume_24h"] = {
+            "n": len(vols), "total_usd": sum(v for _, v in vols), "buckets": buckets,
+            "below_1m_n": sum(1 for _, v in vols if v < 1e6),
+            "top10": [{"symbol": a, "usd": b} for a, b in sorted(vols, key=lambda x: -x[1])[:10]]}
+        scope.append({"endpoint": FAPI + "ticker/24hr", "scanned": "全部 U 本位合约 24h 成交额", "count": len(t24)})
+    out = {"fapi": fapi}
+
+    dp = f.get(DAPI + "exchangeInfo", "dapi exchangeInfo")
+    if dp and dp.get("symbols"):
+        ds = dp["symbols"]
+        out["dapi"] = {"total": len(ds), "by_contract_type": _count(ds, "contractType"),
+                       "by_underlying_type": _count(ds, "underlyingType"),
+                       "name_scan": [{"symbol": x["symbol"], "underlyingType": x.get("underlyingType")}
+                                     for x in ds if INDEX_NAME_PATTERN.search(x["symbol"])]}
+        scope.append({"endpoint": DAPI + "exchangeInfo", "scanned": "币本位合约（合约类型、标的类型、名称扫描）", "count": len(ds)})
+    else:
+        scope.append({"endpoint": DAPI + "exchangeInfo", "scanned": "币本位合约：本次取数失败，未扫描", "count": None})
+
+    spot_info = f.get(SPOT + "exchangeInfo?permissions=SPOT", "spot exchangeInfo")
+    if spot_info and spot_info.get("symbols"):
+        sp = [x for x in spot_info["symbols"] if x.get("status") == "TRADING"]
+        quoted, base = {}, {}
+        for x in sp:
+            if x["quoteAsset"] in FIAT:
+                quoted[x["quoteAsset"]] = quoted.get(x["quoteAsset"], 0) + 1
+            if x["baseAsset"] in FIAT:
+                base.setdefault(x["baseAsset"], []).append(x["symbol"])
+        out["spot"] = {"trading_symbols": len(sp),
+                       "name_scan": [{"symbol": x["symbol"]} for x in sp if INDEX_NAME_PATTERN.search(x["symbol"])],
+                       "fiat_quoted": dict(sorted(quoted.items(), key=lambda kv: -kv[1])),
+                       "fiat_as_base": {k: v[:6] for k, v in base.items()}}
+        scope.append({"endpoint": SPOT + "exchangeInfo?permissions=SPOT", "scanned": "现货交易对（名称扫描、法币计价交易对）", "count": len(sp)})
+    else:
+        spot_info = None
+        scope.append({"endpoint": SPOT + "exchangeInfo", "scanned": "现货：本次取数失败，未扫描", "count": None})
+
+    eapi_info = f.get(EAPI + "exchangeInfo", "options exchangeInfo")
+    if eapi_info and eapi_info.get("optionContracts") is not None:
+        out["eapi"] = {"underlyings": [c["underlying"] for c in eapi_info["optionContracts"]],
+                       "listed_count": _count(eapi_info.get("optionSymbols", []), "underlying"),
+                       "naked_sell": {c["underlying"]: c["nakedSell"] for c in eapi_info["optionContracts"]}}
+        scope.append({"endpoint": EAPI + "exchangeInfo", "scanned": "币安自己的期权（标的清单、挂牌合约数）。不含走 Alpaca 的美股期权",
+                      "count": len(eapi_info.get("optionSymbols", []))})
+    else:
+        eapi_info = None
+        scope.append({"endpoint": EAPI + "exchangeInfo", "scanned": "期权：本次取数失败，未扫描", "count": None})
+    out["scope"] = scope
+    out["not_scanned"] = NOT_SCANNED
+    return out, spot_info, eapi_info
+
+
 # ---------- 取数 ----------
 
 def fetch_symbol(f, sym, funding_n, kline_n):
@@ -288,7 +381,7 @@ def fetch_symbol(f, sym, funding_n, kline_n):
 
 def main():
     ap = argparse.ArgumentParser(description="币安 TradFi 取数 -> snapshot.json")
-    ap.add_argument("--category", required=True, choices=["commodity", "fx", "index", "equity", "custom"])
+    ap.add_argument("--category", required=True, choices=["survey", "commodity", "fx", "index", "equity", "custom"])
     ap.add_argument("--symbols", help="逗号分隔，覆盖自动选取（custom 必填）")
     ap.add_argument("--pairs", help="现货:永续 对照，如 PAXGUSDT:XAUUSDT,USDTBRL:USDBRLUSDT")
     ap.add_argument("--auto-bstocks", action="store_true", help="按名称规则自动配对 bStocks（base+B）")
@@ -316,6 +409,7 @@ def main():
                             for s in ex["symbols"] if INDEX_NAME_PATTERN.search(s["symbol"])],
     }
     info = {s["symbol"]: s for s in ex["symbols"]}
+    snap["survey"], spot_info, eapi_info = build_survey(f, ex)
 
     # 选标的
     watch_labels = {}
@@ -334,6 +428,8 @@ def main():
     elif a.category == "index":
         syms = [x for x in watch_labels if x in info]
         snap["inventory"]["watchlist_not_found"] = [x for x in watch_labels if x not in info]
+    elif a.category == "survey":
+        syms = []
     else:
         sys.exit("custom 必须提供 --symbols")
     for x in syms:
@@ -347,6 +443,9 @@ def main():
         d = fetch_symbol(f, s, a.funding_n, a.kline_n)
         i = info[s]
         d["underlying_type"] = i.get("underlyingType")
+        d["contract_type"] = i.get("contractType")
+        d["status"] = i.get("status")
+        d["margin_asset"] = i.get("marginAsset")
         if i.get("onboardDate"):
             d["onboard_date"] = dt.datetime.fromtimestamp(i["onboardDate"] / 1000, UTC).strftime("%Y-%m-%d")
         flt = {x["filterType"]: x for x in i.get("filters", [])}
@@ -383,9 +482,7 @@ def main():
             if x.count(":") != 1 or not all(x.split(":")):
                 sys.exit("--pairs 格式应为 现货:永续，逗号分隔；收到 %r" % x)
             pairs.append(tuple(x.split(":")))
-    spot_info = None
     if a.auto_bstocks:
-        spot_info = f.get(SPOT + "exchangeInfo?permissions=SPOT", "spot exchangeInfo")
         if spot_info:
             sset = {s["symbol"] for s in spot_info["symbols"] if s["status"] == "TRADING" and s["quoteAsset"] == "USDT"}
             for s in syms:
@@ -422,7 +519,7 @@ def main():
 
     # 类别附加
     if a.category == "commodity":
-        o = f.get(EAPI + "exchangeInfo", "options exchangeInfo")
+        o = eapi_info
         if o:
             unds = {}
             for s in o["optionSymbols"]:
@@ -438,7 +535,7 @@ def main():
                                "strike_min": min(e["strikes"]), "strike_max": max(e["strikes"]),
                                "n_strikes": len(e["strikes"]), "types": sorted(e["types"])} for u, e in unds.items()}}
     if a.category == "fx":
-        si = spot_info or f.get(SPOT + "exchangeInfo?permissions=SPOT", "spot exchangeInfo")
+        si = spot_info
         if si:
             quoted, base = {}, {}
             for s in si["symbols"]:
@@ -451,7 +548,7 @@ def main():
             snap["fiat_spot"] = {"pairs_quoted_in_fiat": dict(sorted(quoted.items(), key=lambda x: -x[1])),
                                  "fiat_as_base": {k: v[:6] for k, v in base.items()}}
     if a.category == "index":
-        si = spot_info or f.get(SPOT + "exchangeInfo?permissions=SPOT", "spot exchangeInfo")
+        si = spot_info
         if si:
             b = sorted({s["baseAsset"] for s in si["symbols"] if s["status"] == "TRADING" and s["quoteAsset"] == "USDT"
                         and s["baseAsset"].endswith("B") and s["baseAsset"][:-1] in {x["baseAsset"] for x in tradfi if "baseAsset" in x}})

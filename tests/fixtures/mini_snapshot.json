@@ -103,5 +103,280 @@
    "error": "HTTP 500",
    "note": "test"
   }
- ]
+ ],
+ "survey": {
+  "fapi": {
+   "total": 920,
+   "by_contract_type": {
+    "PERPETUAL": 703,
+    "TRADIFI_PERPETUAL": 213,
+    "CURRENT_QUARTER": 2,
+    "NEXT_QUARTER": 2
+   },
+   "by_status": {
+    "TRADING": 788,
+    "SETTLING": 131,
+    "PENDING_TRADING": 1
+   },
+   "by_underlying_type": {
+    "COIN": 704,
+    "EQUITY": 175,
+    "HK_EQUITY": 15,
+    "COMMODITY": 8,
+    "KR_EQUITY": 8,
+    "PREMARKET": 4,
+    "INDEX": 3,
+    "CN_EQUITY": 2,
+    "FX": 1
+   },
+   "tradfi_total": 213,
+   "tradfi_by_underlying_type": {
+    "EQUITY": 175,
+    "HK_EQUITY": 15,
+    "COMMODITY": 8,
+    "KR_EQUITY": 8,
+    "PREMARKET": 4,
+    "CN_EQUITY": 2,
+    "FX": 1
+   },
+   "tradfi_by_status": {
+    "TRADING": 213
+   },
+   "tradfi_margin_assets": {
+    "USDT": 212,
+    "USD1": 1
+   },
+   "settling_total": 131,
+   "settling_by_contract_type": {
+    "PERPETUAL": 131
+   },
+   "index_contracts": [
+    {
+     "symbol": "DEFIUSDT",
+     "status": "SETTLING",
+     "contractType": "PERPETUAL",
+     "subtypes": [
+      "Index"
+     ]
+    },
+    {
+     "symbol": "BTCDOMUSDT",
+     "status": "TRADING",
+     "contractType": "PERPETUAL",
+     "subtypes": [
+      "Index",
+      "Crypto"
+     ]
+    },
+    {
+     "symbol": "ALLUSDT",
+     "status": "TRADING",
+     "contractType": "PERPETUAL",
+     "subtypes": [
+      "Index",
+      "Crypto"
+     ]
+    }
+   ],
+   "delivery_contracts": [
+    {
+     "symbol": "BTCUSDT_261225",
+     "contractType": "CURRENT_QUARTER",
+     "underlyingType": "COIN"
+    },
+    {
+     "symbol": "ETHUSDT_261225",
+     "contractType": "CURRENT_QUARTER",
+     "underlyingType": "COIN"
+    },
+    {
+     "symbol": "BTCUSDT_270326",
+     "contractType": "NEXT_QUARTER",
+     "underlyingType": "COIN"
+    },
+    {
+     "symbol": "ETHUSDT_270326",
+     "contractType": "NEXT_QUARTER",
+     "underlyingType": "COIN"
+    }
+   ],
+   "name_scan": [
+    {
+     "symbol": "SPXUSDT",
+     "underlyingType": "COIN"
+    },
+    {
+     "symbol": "BANANAS31USDT",
+     "underlyingType": "COIN"
+    }
+   ],
+   "tradfi_volume_24h": {
+    "n": 213,
+    "total_usd": 13578275660.753454,
+    "buckets": {
+     "<10万": 7,
+     "10万~100万": 84,
+     "100万~1000万": 63,
+     "1000万~1亿": 40,
+     ">=1亿": 19
+    },
+    "below_1m_n": 91,
+    "top10": [
+     {
+      "symbol": "XAUUSDT",
+      "usd": 2096034277.45
+     },
+     {
+      "symbol": "SPCXUSDT",
+      "usd": 1553069564.6107
+     },
+     {
+      "symbol": "SNDKUSDT",
+      "usd": 1509418374.224
+     },
+     {
+      "symbol": "SOXLUSDT",
+      "usd": 1432957432.6012
+     },
+     {
+      "symbol": "CLUSDT",
+      "usd": 926039453.552
+     },
+     {
+      "symbol": "XAGUSDT",
+      "usd": 832272376.7483
+     },
+     {
+      "symbol": "MUUSDT",
+      "usd": 498095073.9713
+     },
+     {
+      "symbol": "BZUSDT",
+      "usd": 415498509.0608
+     },
+     {
+      "symbol": "MSTRUSDT",
+      "usd": 293938158.7326
+     },
+     {
+      "symbol": "CRCLUSDT",
+      "usd": 291818642.9515
+     }
+    ]
+   }
+  },
+  "dapi": {
+   "total": 30,
+   "by_contract_type": {
+    "PERPETUAL": 20,
+    "CURRENT_QUARTER": 5,
+    "NEXT_QUARTER": 5
+   },
+   "by_underlying_type": {
+    "COIN": 30
+   },
+   "name_scan": []
+  },
+  "spot": {
+   "trading_symbols": 1372,
+   "name_scan": [
+    {
+     "symbol": "BANANAS31USDT"
+    },
+    {
+     "symbol": "BANANAS31USDC"
+    }
+   ],
+   "fiat_quoted": {
+    "TRY": 310,
+    "EUR": 29,
+    "IDR": 29,
+    "JPY": 27,
+    "BRL": 18,
+    "MXN": 5,
+    "ARS": 4,
+    "ZAR": 1,
+    "COP": 1,
+    "KZT": 1,
+    "AED": 1
+   },
+   "fiat_as_base": {
+    "EUR": [
+     "EURUSDT",
+     "EURUSDC",
+     "EUREURI"
+    ]
+   }
+  },
+  "eapi": {
+   "underlyings": [
+    "XAGUSDT",
+    "BTCUSDT",
+    "CLUSDT",
+    "ETHUSDT",
+    "BZUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "XAUUSDT"
+   ],
+   "listed_count": {
+    "BTCUSDT": 700,
+    "ETHUSDT": 572,
+    "BNBUSDT": 154,
+    "SOLUSDT": 100,
+    "XRPUSDT": 44,
+    "XAGUSDT": 26,
+    "DOGEUSDT": 20,
+    "XAUUSDT": 20
+   },
+   "naked_sell": {
+    "XAGUSDT": false,
+    "BTCUSDT": true,
+    "CLUSDT": false,
+    "ETHUSDT": true,
+    "BZUSDT": false,
+    "BNBUSDT": false,
+    "SOLUSDT": false,
+    "XRPUSDT": false,
+    "DOGEUSDT": false,
+    "XAUUSDT": false
+   }
+  },
+  "scope": [
+   {
+    "endpoint": "https://fapi.binance.com/fapi/v1/exchangeInfo",
+    "scanned": "U 本位合约（合约类型、标的类型、状态、保证金币种、名称扫描）",
+    "count": 920
+   },
+   {
+    "endpoint": "https://fapi.binance.com/fapi/v1/ticker/24hr",
+    "scanned": "全部 U 本位合约 24h 成交额",
+    "count": 788
+   },
+   {
+    "endpoint": "https://dapi.binance.com/dapi/v1/exchangeInfo",
+    "scanned": "币本位合约（合约类型、标的类型、名称扫描）",
+    "count": 30
+   },
+   {
+    "endpoint": "https://api.binance.com/api/v3/exchangeInfo?permissions=SPOT",
+    "scanned": "现货交易对（名称扫描、法币计价交易对）",
+    "count": 1372
+   },
+   {
+    "endpoint": "https://eapi.binance.com/eapi/v1/exchangeInfo",
+    "scanned": "币安自己的期权（标的清单、挂牌合约数）。不含走 Alpaca 的美股期权",
+    "count": 1636
+   }
+  ],
+  "not_scanned": [
+   "币安 App / 官网页面",
+   "币安公告与监管文件全文",
+   "币安 Margin、Alpha、Convert、P2P、Earn 等其他入口",
+   "不同地区站点上的 CFD / 经纪商业务页面",
+   "币安白标、Link 经纪商的商务条款（需向币安商务确认）"
+  ]
+ }
 }

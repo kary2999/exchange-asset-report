@@ -8,6 +8,10 @@ import sys
 import urllib.request
 from html.parser import HTMLParser
 
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import claims  # noqa: E402
+
 VOID = {"area", "base", "br", "col", "hr", "img", "input", "link", "meta"}
 REQUIRED_H2 = [("结论", "先看结论"), ("产品", "产品清单/有哪些"), ("价格", "价格来源"), ("谁生产|生产|发行", "谁生产的（发行/产品链）"),
                ("玩法", "各场景玩法"), ("实测|对比", "实测数据"), ("坑", "最容易踩的坑"), ("没查到|不要当已知", "没查到的"), (r"^\s*(参考|资料|数据|信息)?来源|参考资料|参考链接", "来源")]
@@ -47,6 +51,7 @@ def main():
     ap.add_argument("report")
     ap.add_argument("--snapshot", action="append", help="生成该报告用的 snapshot.json（可多个）")
     ap.add_argument("--live", action="store_true", help="重新抓取，核对指数成分结构与量级")
+    ap.add_argument("--narrative", help="生成报告用的 narrative.html，用于校验叙述稿哈希（防止只改了报告没改叙述稿）")
     ap.add_argument("--skip-sections", action="store_true", help="不检查必备章节（局部报告用）")
     a = ap.parse_args()
     txt = open(a.report, encoding="utf-8").read()
@@ -86,13 +91,26 @@ def main():
     if trad:
         fails.append("疑似夹杂繁体字：%s" % "".join(trad))
 
-    # 启发式：叙述里手敲的行情数字（自动表格之外的 $、%、bp、倍）。不能证明错，只提醒核对来源。
-    manual = re.sub(r"<!--AUTO-BEGIN-->.*?<!--AUTO-END-->", "", body_nl, flags=re.S)
-    manual = re.sub(r"<(script|style|code)[^>]*>.*?</\1>", "", manual, flags=re.S)
-    manual = re.sub(r"<[^>]+>", " ", manual)
-    hits = re.findall(r"\$\s?\d[\d,\.]*\s?[亿万]?|\d[\d,\.]*\s?(?:%|bp|倍)", manual)
-    if hits:
-        warns.append("叙述里有 %d 处手敲数字（自动表格之外），逐个确认来自快照而非印象：%s" % (len(hits), "、".join(hits[:12])))
+    # 断言级检查：逐句看标签、措辞、全称否定、实测句里的手敲数字（详见 scripts/claims.py）
+    issues, cs = claims.analyze(txt)
+    by = {}
+    for lv, rule, sent in issues:
+        by.setdefault((lv, rule), []).append(sent)
+    for (lv, rule), sents in sorted(by.items(), key=lambda kv: (kv[0][0] != "FAIL", -len(kv[1]))):
+        msg = "%s ×%d：%s" % (rule, len(sents), " ｜ ".join(x[:60] for x in sents[:3]))
+        (fails if lv == "FAIL" else warns).append(msg)
+    if cs["has_negative_claims"] and not re.search(r"<!--AUTO-BEGIN-->.*?没扫的", txt, flags=re.S):
+        fails.append("有「没有 X」类否定结论，但报告里没有扫描范围声明块（需要 <!--AUTO:scope-->）")
+    if not a.skip_sections and 'id="coverage"' not in txt:
+        fails.append("缺少范围声明（id=\"coverage\"）：必须写明哪些部分有脚本数据，哪些只是网页转述")
+
+    if a.narrative:
+        mn = re.search(r'name="narrative-sha256" content="([0-9a-f]+)"', txt)
+        nh = hashlib.sha256(open(a.narrative, "rb").read()).hexdigest()
+        if not mn:
+            warns.append("报告里没有 narrative-sha256（旧版本生成的？）")
+        elif mn.group(1) != nh:
+            fails.append("报告与叙述稿不一致（narrative sha256 不同）：有人只改了其中一边。叙述稿是唯一来源，改它再重新生成")
 
     m = re.search(r'name="snapshot-sha256" content="([0-9a-f]+)"', txt)
     if a.snapshot:
@@ -135,6 +153,7 @@ def main():
                         warns.append("live：%s 24h 成交额与快照相差 %.1f 倍（量级漂移，正文若引用需重取）" % (s, r))
 
     print("标签统计：", ntag)
+    print("断言统计：句子 %d，含事实断言 %d，其中带标签 %d" % (cs["sentences"], cs["claim_sentences"], cs["tagged_claims"]))
     for w in warns:
         print("WARN ", w)
     for f in fails:

@@ -25,6 +25,8 @@ code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;wor
 .k{font-size:24px;font-weight:600}
 nav{display:flex;flex-wrap:wrap;gap:4px 12px}
 nav a{font-size:14px;color:var(--acc)}
+.webonly{border:1px dashed var(--line);border-radius:10px;padding:8px 16px;margin:12px 0}
+.val{font-variant-numeric:tabular-nums}
 .sib{border-top:1px solid var(--line);margin-top:40px;padding-top:12px}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 details summary{cursor:pointer}

@@ -1,0 +1,206 @@
+{
+ "note": "2026-10-03 『币安衍生品业务调研』会话里，验收员发现并改掉的 20 处（倒推出的改动前条目）。n 是编辑序号。",
+ "items": [
+  {
+   "n": 1,
+   "tag": "li",
+   "html": "<li>截至快照时间，币安 U 本位合约里 TradFi 永续共 213 个（见下方清单表：股票/ETF 类 175 个，大宗 8 个，外汇 1 个，港股 15 个，韩股 8 个，A 股相关 2 个，Pre-IPO 4 个）。这些全部是币安自己发行的 USDT 保证金永续，没有实物。<span class=\"tag v\">实测</span></li>"
+  },
+  {
+   "n": 2,
+   "tag": "li",
+   "html": "<li>真正有量的只有少数几个：黄金、杠杆半导体 ETF（SOXL）、原油（CL）、白银、布伦特原油、NVDA、QQQ 等；表里一大批 ETF/小盘股 24h 成交额不到 100 万美元，深度只有几万美元。别拿\"213 个\"当\"213 个能做的市场\"。<span class=\"tag v\">实测</span></li>"
+  },
+  {
+   "n": 3,
+   "tag": "li",
+   "html": "<li>币安没有直接的\"标普500 / 纳指 / 道指\"指数合约：名称扫描只命中 SPXUSDT（标的类型是 COIN，是币不是标普）；基础类型为 INDEX 的只有 3 个，是加密指数（如 BTCDOMUSDT、ALLUSDT）。美股指数敞口只能用 SPY / QQQ / IWM 这类 ETF 永续去替代。<span class=\"tag v\">实测</span>（\"没有\"的结论依据：对 exchangeInfo 全部合约做 underlyingType 分类 + 名称正则扫描）</li>"
+  },
+  {
+   "n": 4,
+   "tag": "li",
+   "html": "<li>币安没有直接的\"标普500 / 纳指 / 道指\"指数合约：名称扫描只命中 SPXUSDT（标的类型是 COIN，是币不是标普）；基础类型为 INDEX 的只有 3 个，是加密指数（如 BTCDOMUSDT、ALLUSDT）。美股指数敞口只能用 SPY / QQQ / IWM 这类 ETF 永续去替代。<span class=\"tag v\">实测</span>（\"没有\"的结论依据：对 exchangeInfo 全部合约做 underlyingType 分类 + 名称正则扫描）</li>"
+  },
+  {
+   "n": 5,
+   "tag": "li",
+   "html": "<li>币安没有面向全球用户的 CFD 产品：合约类型里只有 PERPETUAL / TRADIFI_PERPETUAL / CURRENT_QUARTER / NEXT_QUARTER，没有 CFD 类型。唯一查到的 CFD 是币安澳洲子公司面向澳洲批发客户的加密货币 CFD（媒体报道，年代较早，现状没核实）。永续在经济效果上接近\"没有到期日的 CFD\"，但法律上不是 CFD。<span class=\"tag v\">实测</span><span class=\"tag g\">转述</span><span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 6,
+   "tag": "li",
+   "html": "<li>价格来源（指数价）的共同点：币安自己盘口权重只有约 1%；其余分给 dxfeed、Kaiko、Pyth Pro、Massive、Hyperliquid 等第三方。个别品种单一来源依赖很高：铜（redstone 约 82%）、布伦特原油（hyperliquid 约 91%）。<span class=\"tag v\">实测</span></li>"
+  },
+  {
+   "n": 7,
+   "tag": "li",
+   "html": "<li>期权 / 股票现货 / 代币化股票是另外三条产业链，不是币安自己做市：美股现货与期权由 Nest Trading（ADGM 持牌）做介绍经纪，Alpaca 执行/清算/托管；bStocks 由 BTech Holdings 发行（BEP-20）。<span class=\"tag g\">转述</span></li>"
+  },
+  {
+   "n": 8,
+   "tag": "li",
+   "html": "<li><b>单一来源依赖</b>：铜 redstone 约 82%；布伦特原油 hyperliquid 约 91%。这两个品种的价格质量取决于一个来源。<span class=\"tag v\">实测</span>（权重数字以下表为准）</li>\n<li><b>指数币安盘口权重</b>：多数品种约 1%。<span class=\"tag v\">实测</span></li>"
+  },
+  {
+   "n": 9,
+   "tag": "li",
+   "html": "<li><b>交割期货</b>：U 本位合约里只有 CURRENT_QUARTER / NEXT_QUARTER 的加密币种（各 2 个）；币本位（dapi）有 PERPETUAL 20 / 当季 5 / 次季 5。都是币的，没有股票/指数的交割期货。<span class=\"tag v\">实测</span></li>"
+  },
+  {
+   "n": 10,
+   "tag": "td",
+   "html": "<td>币安没有 CFD 可对接；通常是你自己做 CFD 发行，用币安永续或自己的敞口去对冲</td>"
+  },
+  {
+   "n": 11,
+   "tag": "td",
+   "html": "<td>币安没有股票指数合约；自建指数需要自己的指数规则与数据授权</td>"
+  },
+  {
+   "n": 12,
+   "tag": "td",
+   "html": "<td>币安 U 本位只有币的当季/次季；币本位另有。股票/指数交割期货币安没有</td>"
+  },
+  {
+   "n": 13,
+   "tag": "li",
+   "html": "<li><b>对冲资金与风控</b>：在币安开对冲账户需要 USDT 保证金，面对单一交易所对手风险；币安的 SETTLING 状态合约有 131 个（可见合约会下架/结算，对冲腿要有退出预案）。<span class=\"tag v\">实测</span><span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 14,
+   "tag": "li",
+   "html": "<li><b>集中度风险</b>：币安随时可以调整杠杆、费率、下架合约、限制 API，没有公开的 SLA。<span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 15,
+   "tag": "li",
+   "html": "<li><b>牌照与客户范围</b>：你对谁、在哪个司法辖区提供什么产品，决定要什么牌照。币安自己是通过 ADGM 的主体（Nest Exchange / Nest Trading）提供这些产品的。<span class=\"tag g\">转述</span>你不能借用币安的牌照。<span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 16,
+   "tag": "li",
+   "html": "<li><b>规模</b>：币安公开的白标和旧经纪商计划都提\"规模要求\"，具体数字当前没有官方原文；一份第三方教程写过 2 万用户 / 1,000 BTC 月成交 / 锁 3,000 BNB 的数字，仅供量级参考，需要向币安商务确认。<span class=\"tag g\">转述</span><span class=\"tag u\">未证实</span></li>"
+  },
+  {
+   "n": 17,
+   "tag": "li",
+   "html": "<li>两个指数类合约（BTCDOMUSDT、ALLUSDT）的 constituents 接口返回 400，因此无成分数据；我推断它们是加密指数而非股票指数。<span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 18,
+   "tag": "li",
+   "html": "<li><b>CFD</b>：见结论，全球站没有；<span class=\"tag g\">转述</span>澳洲批发客户的加密 CFD 报道存在，现状 <span class=\"tag u\">未证实</span>。</li>"
+  },
+  {
+   "n": 19,
+   "tag": "li",
+   "html": "<li>Binance Link / CaaS 的当前门槛数字、费用、是否覆盖 TradFi 永续；旧经纪商计划数字来自第三方教程。<span class=\"tag u\">未证实</span></li>\n<li>币安指数价数据的二次商用条款。<span class=\"tag u\">未证实</span></li>"
+  },
+  {
+   "n": 20,
+   "html": null
+  }
+ ],
+ "edits": [
+  {
+   "n": 1,
+   "old": "这些全部是币安自己发行的 USDT 保证金永续，没有实物。<span class=\"tag v\">实测</span></li>",
+   "new": "合约类型均为 TRADIFI_PERPETUAL，保证金币种 212 个为 USDT、1 个为 USD1。同一接口里 U 本位合约共 920 个：PERPETUAL 703、TRADIFI_PERPETUAL 213、当季 2、次季 2。<span class=\"tag v\">实测</span>\"币安自己发行\"\"没有实物\"是我的判断，接口没写发行主体；黄金白银的主体说法见第 3 节。<span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 2,
+   "old": "表里一大批 ETF/小盘股 24h 成交额不到 100 万美元，深度只有几万美元。",
+   "new": "复核时（周六）213 个里有 91 个 24h 成交额不到 100 万美元，表里小盘 ETF 的 ±0.5% 深度只有几万美元。"
+  },
+  {
+   "n": 3,
+   "old": "币安没有直接的\"标普500 / 纳指 / 道指\"指数合约：名称扫描只命中 SPXUSDT（标的类型是 COIN，是币不是标普）；基础类型为 INDEX 的只有 3 个，是加密指数（如 BTCDOMUSDT、ALLUSDT）。",
+   "new": "在币安 U 本位合约（fapi exchangeInfo）里，我没有找到\"标普500 / 纳指 / 道指\"指数合约：名称扫描只命中 SPXUSDT（标的类型是 COIN，是币不是标普）；underlyingType 为 INDEX 的只有 3 个，都是加密指数（BTCDOMUSDT、ALLUSDT、DEFIUSDT；DEFIUSDT 复核时状态为 SETTLING）。币本位（dapi）30 个合约标的类型全是 COIN。"
+  },
+  {
+   "n": 4,
+   "old": "（\"没有\"的结论依据：对 exchangeInfo 全部合约做 underlyingType 分类 + 名称正则扫描）",
+   "new": "（\"没有\"的依据：对 U 本位 920 个、币本位 30 个合约做 underlyingType 分类，加 U 本位名称正则扫描。没扫现货、期权和 App 里的其他入口，所以只能说\"这两个合约接口里没有\"，不能推到\"币安全站没有\"。）"
+  },
+  {
+   "n": 5,
+   "old": "币安没有面向全球用户的 CFD 产品：合约类型里只有 PERPETUAL / TRADIFI_PERPETUAL / CURRENT_QUARTER / NEXT_QUARTER，没有 CFD 类型。",
+   "new": "我没有在币安的合约接口里找到 CFD 产品：U 本位合约类型只有 PERPETUAL / TRADIFI_PERPETUAL / CURRENT_QUARTER / NEXT_QUARTER，币本位只有 PERPETUAL / CURRENT_QUARTER / NEXT_QUARTER，没有 CFD 类型。这只能说明合约接口里没有，不能证明全球站没有（没扫 App 页面和公告）。"
+  },
+  {
+   "n": 6,
+   "old": "币安自己盘口权重只有约 1%；其余分给 dxfeed、Kaiko、Pyth Pro、Massive、Hyperliquid 等第三方。",
+   "new": "币安自己盘口权重多数只有约 1%（布伦特例外，约 9%）；其余分给 dxfeed、Kaiko、Pyth Pro、Massive、Databento、RedStone、Hyperliquid 等第三方。"
+  },
+  {
+   "n": 7,
+   "old": "是另外三条产业链，不是币安自己做市：",
+   "new": "看新闻稿是另外三条产业链（谁在做市没查到）："
+  },
+  {
+   "n": 8,
+   "old": "<li><b>指数币安盘口权重</b>：多数品种约 1%。",
+   "new": "<li><b>指数币安盘口权重</b>：多数品种约 1%（布伦特 9.09%，铜 1.64%，USDBRL 1.32%）。"
+  },
+  {
+   "n": 9,
+   "old": "都是币的，没有股票/指数的交割期货。",
+   "new": "都是币的（币本位 30 个合约标的类型全是 COIN；U 本位交割期货只有 BTC、ETH 各两个），在这两个接口里没查到股票/指数的交割期货。"
+  },
+  {
+   "n": 10,
+   "old": "币安没有 CFD 可对接；通常是",
+   "new": "我在币安合约接口里没查到可对接的 CFD；通常是"
+  },
+  {
+   "n": 11,
+   "old": "币安没有股票指数合约；自建",
+   "new": "币安合约接口里没查到股票指数合约；自建"
+  },
+  {
+   "n": 12,
+   "old": "股票/指数交割期货币安没有</td>",
+   "new": "股票/指数交割期货在 fapi/dapi 里没查到</td>"
+  },
+  {
+   "n": 13,
+   "old": "币安的 SETTLING 状态合约有 131 个（可见合约会下架/结算，对冲腿要有退出预案）。",
+   "new": "复核时 U 本位合约里有 131 个处于 SETTLING 状态，全是加密永续，TradFi 的 213 个都是 TRADING（我推测 SETTLING 是下架结算中，接口没解释；对冲腿要有退出预案）。"
+  },
+  {
+   "n": 14,
+   "old": "币安随时可以调整杠杆、费率、下架合约、限制 API，没有公开的 SLA。",
+   "new": "平台通常保留调整杠杆、费率、下架合约、限制 API 的权利（我没读币安条款原文）；我没查到对外公开的 SLA。"
+  },
+  {
+   "n": 15,
+   "old": "币安自己是通过 ADGM 的主体（Nest Exchange / Nest Trading）提供这些产品的。<span class=\"tag g\">转述</span>",
+   "new": "新闻稿写：黄金白银永续由 Nest Exchange Limited 提供，美股现货/期权走 Nest Trading Limited，都在 ADGM；其他 TradFi 永续的主体没查到。<span class=\"tag g\">转述</span>"
+  },
+  {
+   "n": 16,
+   "old": "一份第三方教程写过 2 万用户 / 1,000 BTC 月成交 / 锁 3,000 BNB 的数字，仅供量级参考，需要向币安商务确认。<span class=\"tag g\">转述</span><span class=\"tag u\">未证实</span>",
+   "new": "一份第三方教程站写过 2 万用户 / 1,000 BTC 月成交 / 锁 3,000 BNB 的数字，不是币安官方口径，也没核实现在是否有效，不要当门槛用，必须向币安商务确认。<span class=\"tag u\">未证实</span>"
+  },
+  {
+   "n": 17,
+   "old": "两个指数类合约（BTCDOMUSDT、ALLUSDT）的 constituents 接口返回 400，因此无成分数据；我推断它们是加密指数而非股票指数。<span class=\"tag\">推论</span>",
+   "new": "三个 INDEX 类合约（BTCDOMUSDT、ALLUSDT、DEFIUSDT）调 constituents 接口返回 400（复核时提示 Invalid symbol），因此无成分数据（上方自动表只记录了前两个失败）。它们在 exchangeInfo 里的子类型都含 Index，其中两个另含 Crypto，所以我判断是加密指数而非股票指数。<span class=\"tag\">推论</span>"
+  },
+  {
+   "n": 18,
+   "old": "见结论，全球站没有；",
+   "new": "见结论，合约接口里没查到（全站有没有未扫）；"
+  },
+  {
+   "n": 19,
+   "old": "<li>币安指数价数据的二次商用条款。<span class=\"tag u\">未证实</span></li>",
+   "new": "<li>币安指数价数据的二次商用条款。<span class=\"tag u\">未证实</span></li>\n<li>第 5 节周末对比表里 BTCDOMUSDT、ALLUSDT 两行写\"数据缺失\"：这两个是 24/7 的加密指数合约，没有\"休市窗口\"可比，脚本没有给它们算周末对比，不是接口出错。<span class=\"tag\">推论</span></li>"
+  },
+  {
+   "n": 20,
+   "old": "这两个是 24/7 的加密指数合约，没有\"休市窗口\"可比，脚本没有给它们算周末对比，不是接口出错。<span class=\"tag\">推论</span>",
+   "new": "脚本主动跳过：它们的 contractType 是普通 PERPETUAL（不是 TRADIFI_PERPETUAL），休市窗口/美股时段统计不适用，不是接口出错。<span class=\"tag v\">实测</span>"
+  }
+ ]
+}

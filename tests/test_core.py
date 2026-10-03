@@ -293,5 +293,94 @@ class TestEdgeCases(unittest.TestCase):
         self.assertIn("--live 需要同时给 --snapshot", r.stdout)
 
 
+class TestRegressionTradfi(unittest.TestCase):
+    """回归：2026-10-03『币安衍生品业务调研』会话里，独立验收员改掉的 20 处。
+    新验收器必须在报告交付前拦住其中可机检的部分。"""
+    FX = os.path.join(os.path.dirname(__file__), "fixtures")
+
+    def _load(self):
+        return json.load(open(os.path.join(self.FX, "regression_tradfi_edits.json"), encoding="utf-8"))["items"]
+
+    def _wrap(self, it):
+        return {"li": "<ul>%s</ul>", "td": "<table><tr>%s</tr></table>"}.get(it["tag"], "%s") % it["html"]
+
+    def test_old_errors_are_caught(self):
+        import claims
+        res = {}
+        for it in self._load():
+            if not it["html"]:
+                continue
+            iss, _ = claims.analyze(self._wrap(it))
+            res[it["n"]] = ("FAIL" if any(l == "FAIL" for l, _, _ in iss) else "WARN" if iss else "NONE")
+        fail = sorted(n for n, v in res.items() if v == "FAIL")
+        warn = sorted(n for n, v in res.items() if v == "WARN")
+        none = sorted(n for n, v in res.items() if v == "NONE")
+        # 18 处真实错误（1~18；19 是验收员新增的补充说明，不是错误）里，规则能直接判 FAIL 的 13 处：
+        # 无标签的数字/全称、全称否定缺范围、实测句里的手敲数字、实测+全称无快照数字证据
+        self.assertEqual(fail, [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 18])
+        # 只能提醒：15 把一个主体的事实外推到所有品种（无标签的句子）；16 把第三方数字同时标了转述和未证实
+        self.assertEqual(warn, [15, 16])
+        # 机检的边界，必须靠独立验收员做语义审查，或靠源头改进：
+        #   7  把没出处的「不是币安自己做市」标成了转述（标签与证据不符，只有读来源才知道）
+        #   14 标了「推论」的绝对化措辞
+        #   17 INDEX 合约写了 2 个实际 3 个：数据不全，已由 survey.fapi.index_contracts 在源头补齐
+        #   19 验收员新增的补充说明，本身不是错误
+        self.assertEqual(none, [7, 14, 17, 19])
+
+    def test_compliant_rewrite_passes(self):
+        py = sys.executable
+        snap = os.path.join(self.FX, "mini_snapshot.json")
+        nar = os.path.join(self.FX, "narrative_compliant.html")
+        out = os.path.join(self.FX, "_compliant.html")
+        r = subprocess.run([py, os.path.join(ROOT, "scripts", "build_report.py"), "--snapshot", snap, "--narrative", nar,
+                            "--title", "t", "--out", out], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        c = subprocess.run([py, os.path.join(ROOT, "scripts", "check_report.py"), out, "--snapshot", snap, "--narrative", nar],
+                           capture_output=True, text=True)
+        os.remove(out)
+        self.assertEqual(c.returncode, 0, c.stdout)
+
+    def test_old_sentences_fail_in_full_report(self):
+        """把真实的旧条目塞进完整报告，整份必须不合格。"""
+        py = sys.executable
+        items = "".join(it["html"] for it in self._load() if it["html"] and it["tag"] == "li")
+        nar = os.path.join(self.FX, "_bad_nar.html")
+        base = open(os.path.join(self.FX, "narrative_compliant.html"), encoding="utf-8").read()
+        open(nar, "w", encoding="utf-8").write(base.replace("<!--AUTO:scope-->", "<ul>%s</ul>" % items))
+        out = os.path.join(self.FX, "_bad.html")
+        subprocess.run([py, os.path.join(ROOT, "scripts", "build_report.py"), "--snapshot", os.path.join(self.FX, "mini_snapshot.json"),
+                        "--narrative", nar, "--title", "t", "--out", out], capture_output=True, text=True)
+        c = subprocess.run([py, os.path.join(ROOT, "scripts", "check_report.py"), out], capture_output=True, text=True)
+        for p in (nar, out):
+            os.remove(p)
+        self.assertEqual(c.returncode, 1)
+        self.assertIn("NEG_SCOPE", c.stdout)
+        self.assertIn("V_HANDNUM", c.stdout)
+        self.assertIn("扫描范围声明块", c.stdout)
+
+    def test_narrative_hash_mismatch(self):
+        py = sys.executable
+        snap = os.path.join(self.FX, "mini_snapshot.json")
+        nar = os.path.join(self.FX, "narrative_compliant.html")
+        out = os.path.join(self.FX, "_h.html")
+        subprocess.run([py, os.path.join(ROOT, "scripts", "build_report.py"), "--snapshot", snap, "--narrative", nar,
+                        "--title", "t", "--out", out], capture_output=True, text=True)
+        other = os.path.join(self.FX, "_other.html")
+        open(other, "w", encoding="utf-8").write(open(nar, encoding="utf-8").read() + "<!-- x -->")
+        c = subprocess.run([py, os.path.join(ROOT, "scripts", "check_report.py"), out, "--snapshot", snap, "--narrative", other],
+                           capture_output=True, text=True)
+        for p in (out, other):
+            os.remove(p)
+        self.assertEqual(c.returncode, 1)
+        self.assertIn("叙述稿不一致", c.stdout)
+
+    def test_weekend_skip_reason_shown(self):
+        import build_report
+        ctx = build_report.Ctx([{"meta": {}, "symbols": {"BTCDOMUSDT": {"weekend_skipped_reason": "非 TRADIFI 永续（contractType=PERPETUAL），休市窗口不适用"}}}])
+        out = build_report.g_weekend(ctx, "")
+        self.assertIn("不适用", out)
+        self.assertNotIn("数据缺失", out)
+
+
 if __name__ == "__main__":
     unittest.main()
