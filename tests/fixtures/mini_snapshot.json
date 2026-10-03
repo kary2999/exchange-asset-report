@@ -1,0 +1,107 @@
+{
+ "meta": {
+  "tool_version": "test",
+  "fetched_at_utc": "2026-01-01 00:00:00",
+  "category": "commodity",
+  "endpoints_used": [
+   "https://example.invalid/x"
+  ]
+ },
+ "inventory": {
+  "tradfi_total": 2,
+  "by_underlying_type": {
+   "COMMODITY": 2
+  },
+  "status_counts": {
+   "TRADING": 2
+  },
+  "index_name_scan": []
+ },
+ "symbols": {
+  "TESTUSDT": {
+   "symbol": "TESTUSDT",
+   "quote_volume_24h": 150000000.0,
+   "open_interest_usd": 50000000.0,
+   "price_change_pct_24h": 1.2,
+   "spread_bp": 0.5,
+   "depth_usd": {
+    "0.1": [
+     1,
+     1
+    ],
+    "0.5": [
+     5260000,
+     4230000
+    ],
+    "1.0": [
+     1,
+     1
+    ]
+   },
+   "mark_vs_index_bp": 3.0,
+   "onboard_date": "2026-01-01",
+   "constituents": [
+    {
+     "exchange": "a",
+     "symbol": "A",
+     "weight": 0.6
+    },
+    {
+     "exchange": "binance_future",
+     "symbol": "TESTUSDT",
+     "weight": 0.4
+    }
+   ],
+   "funding_info": {
+    "interval_hours": 8,
+    "cap_pct": 2.0,
+    "floor_pct": -2.0
+   },
+   "last_funding_rate_pct": 0.01,
+   "funding": {
+    "n": 10,
+    "zero_n": 4,
+    "weekend_zero_n": 4,
+    "mean_pct": 0.01,
+    "nonzero_mean_pct": 0.02,
+    "min_pct": 0.0,
+    "max_pct": 0.05,
+    "sum_pct": 0.1,
+    "zero_times_utc": []
+   },
+   "weekend": {
+    "window_utc": [
+     "2025-12-26 21:00",
+     "2025-12-28 22:00"
+    ],
+    "weekend_hours": 49,
+    "weekday_days": 3,
+    "weekend_vol_per_h": 100000,
+    "weekday_vol_per_h": 1000000,
+    "vol_ratio_pct": 10.0,
+    "weekend_range_pct": 0.5,
+    "weekday_avg_daily_range_pct": 2.0,
+    "reopen_gap_pct": null
+   },
+   "sessions_et": {
+    "regular(10-16 ET)": {
+     "n_hours": 6,
+     "vol_per_h": 1000000,
+     "range_pct": 0.5,
+     "trades_per_h": 100
+    }
+   }
+  },
+  "NODATAUSDT": {
+   "symbol": "NODATAUSDT"
+  }
+ },
+ "spot_pairs": {},
+ "missing": [
+  {
+   "url": "https://example.invalid/y",
+   "error": "HTTP 500",
+   "note": "test"
+  }
+ ]
+}

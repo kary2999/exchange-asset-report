@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>币安外汇玩法拆解</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e4e3dd;--acc:#b8860b;--ok:#1a7f4b;--warn:#b45309;--bad:#b91c1c;--chip:#f1efe6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--fg:#ecebe4;--mut:#9a9990;--card:#1d1d1a;--line:#333330;--acc:#e0b040;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#26261f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+main{max-width:940px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:28px;margin:8px 0}
+h2{font-size:22px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{margin:6px 0}
+.sub{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.tldr{border-left:4px solid var(--acc)}
+.warnbox{border-left:4px solid var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--chip);white-space:nowrap}
+.tw{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:9px;background:var(--chip);margin-right:4px;white-space:nowrap}
+.v{color:var(--ok)} .g{color:var(--warn)} .u{color:var(--bad)}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span.b{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow span.a{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.k{font-size:24px;font-weight:600}
+nav{display:flex;flex-wrap:wrap;gap:4px 12px}
+nav a{font-size:14px;color:var(--acc)}
+.sib{border-top:1px solid var(--line);margin-top:40px;padding-top:12px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>币安外汇玩法拆解</h1>
+<p class="sub">数据快照：2026-10-02 约 15:10 UTC（周五）。标「实测」的数字都是这个时间点直接打币安公开 API 拿的，会变。<br>可信度标记：<span class="tag v">实测</span>API 直接拿到　<span class="tag g">转述</span>官方公告/新闻稿/媒体，我读到但没能对原文　<span class="tag u">未证实</span>找不到可靠来源，别当真　<span class="tag">推论</span>我从数据推的，不是官方说法</p>
+<nav><a href="#s0">先看结论</a><a href="#s1">有哪些产品</a><a href="#s2">价格哪来</a><a href="#s3">谁生产的</a><a href="#s4">各自玩法</a><a href="#s5">流动性实测</a><a href="#s6">坑</a><a href="#s7">没查到的</a></nav>
+
+<h2 id="s0">先看结论</h2>
+<div class="card tldr"><ul>
+<li><b>币安的外汇永续目前只有 1 个：USDBRLUSDT（美元兑巴西雷亚尔）</b>，2026-09-21 14:00 UTC 上线。官方没给出其他币种的上线时间表。<span class="tag v">实测</span><span class="tag g">转述</span>我用接口把所有合约扫了一遍，没有欧元、日元、英镑、人民币、美元指数等外汇合约。<span class="tag v">实测</span></li>
+<li><b>流动性极薄</b>：24 小时成交只有约 <b>$20 万</b>，未平仓约 $50 万。同一时间现货 USDTBRL 成交约 6,940 万 USDT（接口给的是约 3.6 亿雷亚尔，我按 5.24 折算），是它的 300 多倍。<span class="tag v">实测</span><span class="tag">推论</span></li>
+<li>价格来自 3 个外部数据商，各占 32.9%（Kaiko、Massive、Pyth Pro），币安自己的盘口只占 1.3%。<span class="tag v">实测</span></li>
+<li>币安的「外汇」实际有两条路：<b>外汇永续</b>（押汇率涨跌，可杠杆）、<b>现货法币交易对</b>（用法币买卖加密货币，是出入金通道，不是押汇率的工具）。</li>
+<li>杠杆最高 100 倍（新闻稿），但合约价格保护带只有标记价 ±1%。按杠杆定义，100 倍下汇率反向走 1% 左右本金就接近归零（强平价实际在更早处，保证金规则我没查到）。<span class="tag g">转述</span><span class="tag v">实测</span><span class="tag">推论</span></li>
+<li>这不是投资建议。</li>
+</ul></div>
+
+<h2 id="s1">币安上有哪些「外汇」相关产品</h2>
+<h3>1. 外汇永续合约（目前仅 USDBRL）</h3>
+<div class="tw"><table><tr><th>项目</th><th>内容</th><th>可信度</th></tr><tr><td>合约</td><td>USDBRLUSDT，USDT 计价、USDT 保证金永续，无到期日</td><td><span class="tag v">实测</span></td></tr><tr><td>上线</td><td>2026-09-21 14:00 UTC</td><td><span class="tag g">转述</span><span class="tag v">实测</span></td></tr><tr><td>下单单位与价格档位</td><td>最小 0.01 USDBRL，价格最小跳动 0.0001，最小成交额 $5</td><td><span class="tag v">实测</span></td></tr><tr><td>资金费率</td><td>每 8 小时结算，上下限 ±0.375%</td><td><span class="tag v">实测</span></td></tr><tr><td>杠杆</td><td>最高 100 倍</td><td><span class="tag g">转述</span></td></tr><tr><td>价格保护带</td><td>限价单只能落在标记价 ±1%，市价单保护范围也是 1%</td><td><span class="tag v">实测</span></td></tr><tr><td>强平手续费</td><td>1.5%</td><td><span class="tag v">实测</span></td></tr><tr><td>交易时间</td><td>24/7</td><td><span class="tag g">转述</span></td></tr><tr><td>定价模式</td><td>外汇市场时段（周日 17:00 ET 到周五 17:00 ET）：指数每秒更新，多个第三方数据商加权；周末和假日（周五 17:00 ET 到周日 17:00 ET）：切到订单簿 EWMA 模式</td><td><span class="tag g">转述</span></td></tr><tr><td>后续币种</td><td>官方没给时间表</td><td><span class="tag g">转述</span></td></tr></table></div>
+<h3>2. 现货「法币对」（出入金通道，不是外汇投机品）</h3>
+<p>我扫描币安现货交易对，统计以法币计价的交易对数量：<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>计价法币</th><th>交易对数量</th><th>备注</th></tr><tr><td>土耳其里拉 TRY</td><td>310</td><td>最多</td></tr><tr><td>欧元 EUR</td><td>29</td><td>另有 EURUSDT、EURUSDC：直接用欧元兑稳定币，当前约 1.127</td></tr><tr><td>印尼盾 IDR</td><td>29</td><td></td></tr><tr><td>日元 JPY</td><td>27</td><td></td></tr><tr><td>巴西雷亚尔 BRL</td><td>18</td><td>含 USDTBRL，当前 5.2421</td></tr><tr><td>墨西哥比索 MXN</td><td>5</td><td></td></tr><tr><td>阿根廷比索 ARS</td><td>4</td><td></td></tr><tr><td>南非兰特 ZAR、哥伦比亚比索 COP、哈萨克坚戈 KZT、阿联酋迪拉姆 AED</td><td>各 1</td><td></td></tr></table></div>
+<p class="sub">这些是币种对法币的交易，价格里含「USDT 对法币的溢价或折价」，所以 USDTBRL 并不等于官方 USD/BRL 汇率。币安另有 P2P、一键兑换等法币通道，这次没有调研。</p>
+
+<h2 id="s2">价格是怎么来的（重点）</h2>
+<h3>外汇永续：指数 = 3 家外部数据商的平均</h3>
+<p>直接打 <code>/fapi/v1/constituents?symbol=USDBRLUSDT</code> 拿到：<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>数据源</th><th>代号原文</th><th>权重</th><th>白话</th></tr><tr><td>Kaiko</td><td>KK_RFR_USDBRL//uindex(USDTUSD)</td><td>32.89%</td><td>数据商的「参考汇率」</td></tr><tr><td>Massive</td><td>C.USD/BRL//uindex(USDTUSD)</td><td>32.89%</td><td>外汇行情数据商（C. 前缀是外汇品类，推论）</td></tr><tr><td>Pyth Pro</td><td>USDBRL//uindex(USDTUSD)</td><td>32.89%</td><td>机构版预言机报价</td></tr><tr><td>币安期货自己</td><td>USDBRLUSDT</td><td>1.32%</td><td>币安盘口，权重很小</td></tr></table></div>
+<ul>
+<li>代号里带 <code>//uindex(USDTUSD)</code>：外部汇率先换成美元计价，再乘 USDT/USD 转成 USDT。<b>USDT 偏离 1 美元，会直接影响这个合约的价格。</b><span class="tag">推论</span></li>
+<li>实测：指数 5.2373、标记价 5.2359。现货 USDTBRL 最新价 5.2421。<span class="tag v">实测</span></li>
+<li><b>周末怎么定价</b>：官方说周末切到订单簿 EWMA 模式。也就是周末外汇主市场休息时，指数改用币安自己订单簿价格的移动平均，主要由币安这边的交易者定价。<span class="tag g">转述</span></li>
+<li>币安对这个合约有标记价与指数价之间的偏离控制，具体幅度新闻稿没写。商品类合约是 ±3%，外汇的数字我没查到。<span class="tag u">未证实</span></li>
+</ul>
+<h3>现货 USDTBRL：纯订单簿撮合</h3>
+<ul>
+<li>价格由买卖双方在币安订单簿上撮合，没有外部汇率参与。买一 5.2420、卖一 5.2421，24 小时成交 6,940 万 USDT。<span class="tag v">实测</span></li>
+<li>它含有「USDT 对美元的溢价」：过去 7 天现货比外汇永续平均高 <b>0.136%</b>（13.6bp），范围从 −0.34% 到 +0.79%。<span class="tag v">实测</span>这个价差有一部分是巴西市场对 USDT 的需求溢价，我没法拆分。<span class="tag">推论</span></li>
+</ul>
+
+<h2 id="s3">谁生产的</h2>
+<div class="flow"><span class="b">Kaiko / Massive / Pyth Pro 汇率报价</span><span class="a">→ 加权</span><span class="b">指数价</span><span class="a">→</span><span class="b">标记价 + 币安撮合引擎</span><span class="a">→</span><span class="b">USDT 保证金的多空仓位</span></div>
+<ul>
+<li>合约类型 <code>TRADIFI_PERPETUAL</code>，标的类型 <code>FX</code>，归在币安合约的「TradFi」分类下。<span class="tag v">实测</span></li>
+<li>新闻稿称这是币安 TradFi 永续产品线的外汇延伸，24/7、USDT 结算。<span class="tag g">转述</span></li>
+<li>提供这个合约的法律主体：黄金白银的新闻稿写明是 Nest Exchange Limited（ADGM 的 FSRA 监管）。外汇这份新闻稿我读到的内容没有写监管主体，所以<b>外汇合约是否同一主体、是否同样受监管，我没确认</b>。<span class="tag u">未证实</span></li>
+<li>没有真实汇兑发生。你买的是一份「美元兑雷亚尔涨跌」的合约，不会得到雷亚尔。对手方是市场上的其他交易者。<span class="tag">推论</span></li>
+</ul>
+
+<h2 id="s4">玩法与特性（白话）</h2>
+<h3>A. 外汇永续：「24 小时押美元兑雷亚尔，可以杠杆、可以做空」</h3>
+<ul>
+<li><b>适合</b>：想对冲雷亚尔贬值风险的人（比如收入或资产是雷亚尔）、做巴西央行议息、美国数据、巴西财政新闻等事件交易、周末新闻交易。</li>
+<li><b>做多 USDBRL</b>＝看美元涨、雷亚尔跌；<b>做空</b>＝反过来。</li>
+<li><b>资金费率</b>：每 8 小时结算，上下限 ±0.375%。上线以来 42 期里 31 期为 0；11 期非零，范围 −0.064% 到 +0.156%，非零期平均 +0.042%，合计 +0.46%（多头付给空头）。所有期平均 +0.0109%。<span class="tag v">实测</span></li>
+<li><b>没有利差</b>：接口里 <code>interestRate</code> 字段为 0。雷亚尔利率远高于美元，真实外汇远期里这个利差是定价的一部分，但这个永续的资金费率里没有体现。所以它<b>不等于</b>银行的外汇远期，持仓不会像持有高息货币那样赚利息。<span class="tag v">实测</span><span class="tag">推论</span></li>
+<li><b>坑</b>：深度极薄（见第 5 节）；100 倍杠杆下价格保护带只有 ±1%。</li>
+</ul>
+<h3>B. 现货法币对：「出入金通道」</h3>
+<ul>
+<li>用于把法币换成加密货币，不是押汇率的主要工具。USDTBRL 的汇率包含 USDT 溢价，和银行汇率会有差。</li>
+<li>如果你持有 USDT 又要换成雷亚尔，可以拿外汇永续做方向对冲，但要留意流动性和价差。<span class="tag">推论</span></li>
+</ul>
+<h3>C. 现货与永续之间的价差</h3>
+<ul>
+<li>平均 +13.6bp，最大 +78.7bp。现货交易费率因账户而异，我没查，若按常见的 0.1% 估算就已经超过平均价差，而且永续一侧深度太薄，难以做规模。这不是无风险套利。<span class="tag v">实测</span><span class="tag">推论</span></li>
+</ul>
+
+<h2 id="s5">实测：流动性</h2>
+<div class="grid">
+<div class="card"><div class="sub">24h 成交</div><div class="k">$20 万</div><div>永续 USDBRLUSDT。同期现货 USDTBRL 6,940 万 USDT <span class="tag v">实测</span></div></div>
+<div class="card"><div class="sub">未平仓</div><div class="k">$50 万</div><div><span class="tag v">实测</span></div></div>
+<div class="card"><div class="sub">±0.1% 内深度</div><div class="k">$6.1 万 / $0.8 万</div><div>买盘 / 卖盘，卖盘一侧几乎没有 <span class="tag v">实测</span></div></div>
+<div class="card"><div class="sub">±0.5% 内深度</div><div class="k">$12.6 万 / $9.4 万</div><div>买盘 / 卖盘 <span class="tag v">实测</span></div></div>
+</div>
+<ul>
+<li>买一卖一价差只有 0.19bp（一个最小跳动），但<b>$10 万的单就会把盘口吃穿</b>。</li>
+<li>周末与盘中对比：这个合约上线才 11 天，我没有足够样本做可靠的周末统计，所以不给周末对比数字。</li>
+<li>资金费率为 0 的时刻包括：周五 16:00、周六 00:00 / 08:00 / 16:00、周日 00:00 / 08:00 / 16:00、周一 00:00 / 08:00 等，周中也有（周二 08:00、周四 00:00 / 08:00 / 16:00）。所以资金费率为 0 不等于休市。<span class="tag v">实测</span></li>
+</ul>
+
+<h2 id="s6">最容易踩的坑</h2>
+<div class="card warnbox"><ol>
+<li><b>流动性极薄</b>：每天只有 $20 万成交，大单必然滑价；现货比它大 300 多倍。</li>
+<li><b>杠杆与保护带</b>：新闻说最高 100 倍，价格保护带 ±1%，强平手续费 1.5%。</li>
+<li><b>只有一个币种</b>：想押欧元、日元、美元指数，币安合约里没有。</li>
+<li><b>周末定价</b>：外汇市场休市时，价格由币安自己的订单簿决定，薄盘更容易被推动。<span class="tag g">转述</span><span class="tag">推论</span></li>
+<li><b>USDT 计价</b>：指数用 USDT/USD 汇率换算，USDT 脱锚会传到价格上。<span class="tag">推论</span></li>
+<li><b>永续不含利差</b>：不要把它当远期外汇或套息工具。<span class="tag">推论</span></li>
+<li><b>现货 USDTBRL 不等于官方汇率</b>：含 USDT 溢价。</li>
+<li><b>监管主体不明</b>：外汇合约是否在 Nest Exchange Limited 下，我没确认。<span class="tag u">未证实</span></li>
+</ol></div>
+
+<h2 id="s7">我没查到、不要当已知的</h2>
+<ul>
+<li>外汇合约的监管主体与适用地区限制。<span class="tag u">未证实</span></li>
+<li>实际杠杆分档、维持保证金率（需登录）。<span class="tag u">未证实</span></li>
+<li>标记价与指数价之间的偏离上限。<span class="tag u">未证实</span></li>
+<li>后续是否会上线其他币种、何时上线。<span class="tag g">转述</span></li>
+<li>币安 P2P、一键兑换等法币通道（本次没有调研）。</li>
+<li>周末与盘中的行为差异：样本太少，没法下结论。</li>
+</ul>
+
+<h2>来源</h2>
+<ul class="sub">
+<li>币安公开 API：<code>fapi.binance.com</code>（exchangeInfo、constituents、premiumIndex、fundingRate、depth、ticker/24hr、openInterest）；<code>api.binance.com</code>（exchangeInfo、USDTBRL、EURUSDT 行情与 K 线）。快照 2026-10-02 约 15:10 UTC。</li>
+<li><a href="https://www.prnewswire.com/news-releases/binance-launches-foreign-exchange-perpetual-futures-expanding-247-access-to-the-largest-financial-market-302883411.html">币安外汇永续新闻稿</a>、<a href="https://www.cryptotimes.io/2026/09/19/binance-to-launch-24-7-fx-perpetual-futures-on-sept-21/">Crypto Times 报道</a>。</li>
+<li>TradFi 永续的监管框架：<a href="https://www.prnewswire.com/news-releases/binance-launches-first-regulated-tradfi-perpetual-contracts-settled-in-stablecoin-starting-with-gold-and-silver-302656186.html">黄金白银永续新闻稿</a>。</li>
+</ul>
+<div class="sib sub">本系列：<a href="nvda-binance-report.html">英伟达（美股/bStocks）</a>　<a href="binance-commodities-report.html">大宗商品</a>　<b>外汇</b>　<a href="binance-index-report.html">指数</a></div>
+</main>
+</body>
+</html>

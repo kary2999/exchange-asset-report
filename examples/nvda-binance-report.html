@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>币安 NVDA 四种玩法拆解</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e4e3dd;--acc:#b8860b;--ok:#1a7f4b;--warn:#b45309;--bad:#b91c1c;--chip:#f1efe6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--fg:#ecebe4;--mut:#9a9990;--card:#1d1d1a;--line:#333330;--acc:#e0b040;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#26261f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:920px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:28px;margin:8px 0}
+h2{font-size:22px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{margin:6px 0}
+.sub{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.tldr{border-left:4px solid var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--chip);white-space:nowrap}
+.tw{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:9px;background:var(--chip);margin-right:4px;white-space:nowrap}
+.v{color:var(--ok)} .g{color:var(--warn)} .u{color:var(--bad)}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span.b{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow span.a{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.k{font-size:24px;font-weight:600}
+.warnbox{border-left:4px solid var(--bad)}
+nav a{margin-right:12px;font-size:14px;color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+<h1>币安 NVDA 四种玩法拆解</h1>
+<p class="sub">数据快照：2026-09-29 15:42 UTC（下面凡标「实测」的数字都是这个时间点直接打币安公开 API 拿的，会变）。<br>
+可信度标记：<span class="tag v">实测</span>API 直接拿到　<span class="tag g">转述</span>币安官方页/新闻稿/媒体，我读到但没能对原文　<span class="tag u">未证实</span>找不到可靠来源，别当真　<span class="tag">推论</span>我从数据推的，不是官方说法</p>
+<nav><a href="#s0">先看结论</a><a href="#s1">四种东西</a><a href="#s2">价格哪来</a><a href="#s3">谁生产的</a><a href="#s3b">8题免责</a><a href="#s4">各自玩法</a><a href="#s5">差异实测</a><a href="#s5b">盘后实测</a><a href="#s6">坑</a><a href="#s7">没查到的</a></nav>
+
+<h2 id="s0">先看结论</h2>
+<div class="card tldr">
+<ul>
+<li><b>币安上「买 NVDA」有四条路，本质完全不同</b>：真股票（有股东身份）、bStocks 代币（一张「凭证」，不是股票）、永续合约（纯押价格涨跌，没有任何资产）、期权（买方付权利金押方向）。</li>
+<li><b>真正的价格中心是永续合约，不是 bStocks 现货。</b>永续 24 小时成交约 <b>$1.97 亿</b>、未平仓约 <b>$1.5 亿</b>；bStocks 现货 24 小时成交才约 <b>$900 万</b>，整个 bStocks NVDAB 市值只有约 <b>$3,200～3,400 万</b>。现货是「跟着永续走」的小池子。</li>
+<li>永续的价格来自 <b>6 个外部数据源加权</b>（其中只有 0.7% 权重是币安自己的盘口），不是币安自己撮合出来的。bStocks 现货的价格是<b>纯粹买卖双方在币安订单簿上撮合</b>，发行方不定价。</li>
+<li>过去 7 天实测：bStocks 现货每小时收盘价平均比永续<b>低约 0.08%（8.4 个基点）</b>。但现货手续费就是 0.1%，光这个价差<b>不够付一边的手续费</b>，别以为有free lunch。</li>
+<li>周末是最大的坑：美股休市，永续资金费率<b>实测归零</b>，现货成交量只有平日一天的零头，周一开盘会<b>跳空</b>（9/28 周一实测：资金费率结算时的标记价从 223.34 跳到 230.35，约 +3.1%）。</li>
+<li>这不是投资建议。我没有帮你点任何协议、没有答任何风险题（你截屏那个免责声明，八题必须自己亲手答「是」）。</li>
+</ul>
+</div>
+
+<h2 id="s1">四种东西，一张表看懂</h2>
+<div class="tw"><table>
+<tr><th></th><th>真股票</th><th>bStocks（NVDAB）</th><th>永续合约 NVDAUSDT</th><th>股票期权</th></tr>
+<tr><th>你手上拿到什么</th><td>真股份（受益所有权）</td><td>BNB Chain 上的一枚 BEP-20 代币，法律上是「凭证」<br><span class="tag g">转述</span></td><td>什么都没有，只是一笔帐上的多/空仓位</td><td>买了一张「买/卖的权利」，行权才有真股票</td></tr>
+<tr><th>能不能提到钱包</th><td>不能</td><td>能（标准代币）<span class="tag g">转述</span></td><td>不能</td><td>不能</td></tr>
+<tr><th>能不能放空</th><td>不能</td><td>现货不能直接空；exchangeInfo 显示允许 MARGIN（杠杆）交易 <span class="tag v">实测</span></td><td>能，随时</td><td>买 Put 等于看空；一期不能开卖方 <span class="tag g">转述</span></td></tr>
+<tr><th>交易时间</th><td>24/5，含盘前盘后 <span class="tag g">转述</span></td><td>24/7</td><td>24/7，但美股休市时定价品质差</td><td>美股常规时段 9:30–16:00 ET <span class="tag g">转述</span></td></tr>
+<tr><th>最大亏损</th><td>买入本金</td><td>买入本金</td><td>会被强平，亏保证金；杠杆越高越危险</td><td>买方：权利金</td></tr>
+<tr><th>股息</th><td>现金</td><td>自动再投资，余额变多（乘数机制）<span class="tag g">转述</span></td><td>没股息；靠资金费率结算多空</td><td>无</td></tr>
+<tr><th>谁能玩</th><td>币安 Stock Trading 资格规则我没查到 <span class="tag u">未证实</span></td><td>非美国人；<b>限定司法辖区</b>（见免责声明）</td><td>依币安合约帐户资格</td><td>非美国用户；要通过 Alpaca 开户审核 <span class="tag g">转述</span></td></tr>
+</table></div>
+
+<h2 id="s2">价格是怎么来的（重点）</h2>
+
+<h3>① 永续合约 NVDAUSDT：外部 6 个数据源加权出「指数价」</h3>
+<p>直接打 <code>/fapi/v1/constituents?symbol=NVDAUSDT</code> 拿到的成分与权重（<span class="tag v">实测</span>）：</p>
+<div class="tw"><table>
+<tr><th>数据源</th><th>代号原文</th><th>权重</th><th>白话</th></tr>
+<tr><td>dxFeed</td><td>NVDA:USLF24//uindex(USDTUSD)</td><td>25.74%</td><td>金融数据商，美股 24 小时行情源（代号看起来是 24 小时的美股 feed，<span class="tag">推论</span>）</td></tr>
+<tr><td>Kaiko</td><td>KK_RFR_NVDAUSD//uindex(USDTUSD)</td><td>25.74%</td><td>数据商的「参考汇率」型价格</td></tr>
+<tr><td>Pyth Pro</td><td>NVDA//uindex(USDTUSD)</td><td>25.74%</td><td>Pyth 的机构版链上预言机报价</td></tr>
+<tr><td>Databento</td><td>NVDA//uindex(USDTUSD)</td><td>11.03%</td><td>美股行情数据商</td></tr>
+<tr><td>Massive</td><td>FMV.NVDA//uindex(USDTUSD)</td><td>11.03%</td><td>「FMV」＝公允价值，不是最后一笔成交（<span class="tag">推论</span>）</td></tr>
+<tr><td>币安期货自己</td><td>NVDAUSDT</td><td>0.74%</td><td>币安自己的盘口，权重几乎可忽略</td></tr>
+</table></div>
+<ul>
+<li>5 家外部数据源的代号都带 <code>//uindex(USDTUSD)</code>（复核时重打 constituents 确认），意思是：外部报价是美元，要再乘上 USDT/USD 汇率，换成 USDT 计价。所以 <b>USDT 脱锚会直接影响指数</b>。</li>
+<li>权重总和刚好 100%。实测当下指数 <b>230.91</b>，标记价 <b>231.05</b>（标记价用来算强平和未实现盈亏）。</li>
+<li>我没查到币安对「TradFi 股票永续」标记价的专用公式（只看到通用说法），所以「标记价怎么从指数算出来」<span class="tag u">未证实</span>。</li>
+<li>休市时怎么办：币安对<b>商品类</b> TradFi 合约公告：常规时段（周日 18:00～周五 17:00 ET）指数每秒更新、多家数据商加权；周末/假日切到「订单簿 EWMA 模式」（<span class="tag g">转述</span>，生效日 2026-09-15 21:00 UTC）。<b>这份公告只点名黄金、原油等商品，没点名 NVDA 这类股票</b>。股票是否同套规则，我没找到官方说法 <span class="tag u">未证实</span>。实测看到的现象是：周末资金费率为 0（见第 5 节）。</li>
+</ul>
+
+<h3>② bStocks 现货 NVDAB/USDT：完全是订单簿自己撮合</h3>
+<ul>
+<li>币安 FAQ 说法（<span class="tag g">转述</span>）：<b>价格由供需决定，不是发行方定的</b>；可能高于或低于标的股价（溢价/折价），原因包括流动性、费用、税、价差和非常规时段交易。</li>
+<li>实测盘口：买一 230.93、卖一 230.94，价差只有 1 档（0.01 美元 ≈ 0.4 个基点）。买盘前 5 档共约 44 枚，卖盘前 5 档共约 195 枚，卖盘更厚。</li>
+<li>怎么把价格拉回股价：靠<b>套利</b>。理论上有人在「真股票」和「bStocks」之间免费 1:1 转换（Token Conversion，零手续费、24/7，<span class="tag g">转述</span>），价差大就会有人搬砖。但转换要通过资格检查，公司行动期间会暂停，不是谁都能做。做市商是谁、有没有官方做市，<span class="tag u">未证实</span>（新闻稿只提到「初期零做市费（限时）」）。</li>
+<li>所以：<b>现货价 ≈ 股价 + 永续价格的影响 + 搬砖者的能力</b>。实测的证据见第 5 节。</li>
+</ul>
+
+<h3>③ 股票期权：价格来自美股期权市场</h3>
+<p>下单路径是 币安 App → Nest Trading（介绍经纪商）→ <b>Alpaca Securities</b>（美国自营清算经纪商，负责运行、清算、结算、托管）<span class="tag g">转述</span>。所以期权报价<b>大概率是真的美股期权市场价</b>，不是币安自己撮合。这点是推论 <span class="tag">推论</span>，新闻稿没直接写「报价来源」。</p>
+<p>币安自己的加密期权接口（eapi）目前只列了 10 个标的（BTC、ETH、BNB、SOL、XRP、DOGE、黄金、白银、两种原油），<b>没有 NVDA</b> <span class="tag v">实测</span>——证明股票期权是另一条独立的系统，跟币安原有的加密期权不是一套。</p>
+
+<h2 id="s3">谁生产的（发行/托管链）</h2>
+
+<h3>bStocks</h3>
+<div class="flow"><span class="b">真股票（美股 NVDA）</span><span class="a">→ 由 Nest Trading 买入，存放在受监管托管人</span><span class="b">BTech Holdings Limited 发行凭证</span><span class="a">→ 铸成</span><span class="b">BEP-20 代币 NVDAB（BNB Chain）</span><span class="a">→ 上架</span><span class="b">币安现货</span></div>
+<ul>
+<li>发行方：<b>BTech Holdings Limited</b>（币安集团关联公司）。监管：阿布达比全球市场 ADGM 的金融服务监管局核准了招股书，2026-06-10 上线，首批 5 档：CRCL、MU、NVDA、SNDK、TSLA。<span class="tag g">转述</span></li>
+<li>法律定性（你贴的免责声明原文）：<b>「代表特定金融工具的凭证」，不是股票</b>，没有股东权、投票权、直接股息权。</li>
+<li>合约地址：<code>0x02fca66c1d1afb4e2a7884261eb00f63598a7436</code>（BNB Chain，BEP-20）。币安页面显示缩写 0x02fc…8a7436，两者吻合。地址来自第三方行情页 <span class="tag g">转述</span>，你自己上链浏览器对一下再用。</li>
+<li>托管人是谁：官方文本只说「受监管的托管机构」。有搜索摘要提到 Alpaca、每周链上储备证明、Lloyd's 保险，但那些摘要混了别家（如 Kraken xStocks）的数据，<b>我无法确认是 bStocks 的</b> <span class="tag u">未证实</span>。币安说有「Collateral（抵押品）页面」可以查，但也警告那页数据「可能不反映即时结算、待处理交易、公司行动、税、费用、证券借出等」。这句话值得记住：<b>证券借出（securities lending）</b>也在可能项里，意思是托管的股票理论上可能被借出去。</li>
+<li>供给是弹性的：发行、转换、赎回会让供给增减（没有固定总量）。第三方行情页显示流通量约 14.8～15.1 万枚、市值约 $3,190～3,400 万（两个页面数字不同，时间点也不同）。</li>
+<li>赎回：发行方保留时机、费用、上限的裁量权；公司行动期间可能暂停 <span class="tag g">转述</span>。<b>你不是随时能换回真股票或现金。</b></li>
+<li>股息：不发现金，扣预扣税后自动再投资，用链上「乘数（Multiplier）」让你的<b>显示余额</b>变多，链上原始代币数量不变。拆股同理自动调整。<span class="tag g">转述</span>这意味着：你去 DeFi 用、或转钱包，要注意「显示余额」和「原始代币数」不一样，第三方协议未必支持。</li>
+<li>费用：零佣金、零托管费、零管理费、零转换费；但现货买卖有手续费（页面显示 0.1%）、提币有链上费用。<span class="tag g">转述</span></li>
+</ul>
+
+<h3>永续合约</h3>
+<div class="flow"><span class="b">外部 6 家数据源报价</span><span class="a">→ 加权</span><span class="b">指数价</span><span class="a">→</span><span class="b">标记价（强平用）</span><span class="a">+</span><span class="b">币安自己的撮合引擎</span><span class="a">→</span><span class="b">USDT 保证金仓位</span></div>
+<ul>
+<li>没有任何真股票或代币，<b>是币安自己发的衍生品</b>。你的对手方是市场上的其他交易者（多空互为对手方，资金费率在双方之间转移）<span class="tag">推论</span>；币安的风控/保险机制细节我没查 <span class="tag u">未证实</span>。</li>
+<li>合约类型字段：<code>TRADIFI_PERPETUAL</code>，标的类型 EQUITY，2026-03-26 上线（onboardDate 换算，<span class="tag v">实测</span>）。</li>
+<li>币安强调它是币安集团自己的合约产品；股票类和 2026 上半年推出的黄金白银「受监管的 TradFi 永续」是同一产品线 <span class="tag g">转述</span>。</li>
+</ul>
+
+<h3>期权</h3>
+<div class="flow"><span class="b">你在币安 App 下单</span><span class="a">→</span><span class="b">Nest Trading（ADGM 持牌，介绍经纪）</span><span class="a">→</span><span class="b">Alpaca Securities（美国 FINRA 会员，运行+清算+托管）</span><span class="a">→</span><span class="b">美股期权市场</span></div>
+<ul>
+<li>2026-09-01 上线，1,000+ 档美股/ETF，<b>实物交割</b>（行权真的拿到/交出股票，股票由 Alpaca 代币安托管）。<span class="tag g">转述</span></li>
+<li>NVDA 页面显示的到期日（<span class="tag g">转述</span>）：09-28、09-30、10-02、10-05、10-07、10-09、10-12、10-16、10-23、10-30、11-06、11-20、12-18，长期到 2027-01-15、02-19、03-19、04-16、06-17、09-17、12-17，最远 2028-06-16。也就是有<b>每周三次的短期单</b>，也有两年的长期单。</li>
+</ul>
+
+<h3>④ bStocks 价格页（币安网页上的 NVDAB 价格展示页）</h3>
+<ul>
+<li><b>价格来源：我没有验证。</b>这个页面显示的价格是取自现货订单簿、永续指数、还是别的报价，币安没有在我读到的数据里说明，我也没法对原页面取证 <span class="tag u">未证实</span>。</li>
+<li>能确定的只有旁证：现货 NVDABUSDT 的最新价、买一卖一我直接打 API 拿到（<span class="tag v">实测</span>，见 ②）；若价格页与此一致，最合理的推论是它直接显示现货盘口价 <span class="tag">推论</span>。</li>
+<li><b>生产者：</b>页面是币安做的展示；被展示的资产由 BTech Holdings Limited 发行（见第 3 节）<span class="tag g">转述</span>。页面上的市值、流通量若是第三方（如 yellow.com）算出来的，两个页面数字不同（3,190 万 vs 3,400 万），说明各家算法/时间点不一致 <span class="tag g">转述</span>。</li>
+<li><b>怎么用／坑：</b>价格页的数字别直接当成「NVDA 股价」——它是凭证价，可能有溢折价（见 ②）；看市值和流通量时注意供给是弹性的，数字会随发行/赎回变动；要下单以交易页盘口为准。</li>
+</ul>
+
+<h2 id="s3b">bStocks 免责声明：8 题风险知悉，白话对照</h2>
+<div class="card warnbox">
+<p>以下依你贴的免责声明原文逐题整理（<span class="tag v">原文</span>）。<b>8 题必须全选「是」才能继续</b>，答「不」就进不去；这 8 题你要亲手答，我不代答。</p>
+<ol>
+<li><b>价格会剧烈波动</b>：流动性低、市场休市时（尤其周末、非交易时段）价格可能大幅震荡。→ 对应本报告第 5 节：周末现货深度薄。</li>
+<li><b>价格可能跟标的股票不一样，且不保证 1:1 挂钩</b>：流动性、手续费、价差、做市商活动、托管或结算限制、公司行动、预扣税、市场混乱、数据问题都会造成偏离。→ 第 2 节②：现货价是供需决定，实测长期比永续低约 0.08%。</li>
+<li><b>你买的不是股份</b>：没有对标的的直接法律所有权、投票权、直接股息权、股东权利（发行方可依文档调整以反映部分经济影响，即乘数机制）。</li>
+<li><b>标的休市时仍可交易，但随时可能被暂停、限制、延迟或无法交易</b>。→ 你卖不掉的时候，没人保证。</li>
+<li><b>休市期间价格可能大幅波动，重新开市会跳空造成损失</b>。→ 第 5 节：9/28 周一实测跳空约 3%。</li>
+<li><b>你有责任在交易前读《常见问题》和《币安风险披露声明》</b>，内含产品风险、结构、发行方信用状况。</li>
+<li><b>你承担信用、营运、托管、经纪商、发行方、做市商、中间机构风险</b>；即使标的表现如预期，你的代币价值也可能受影响。→ 呼应：托管人、储备证明我没查到（第 8 节）。</li>
+<li><b>赎回可能被延迟、暂停或拒绝</b>；可能有最低赎回金额或资格要求；可能以现金而非股票兑付；你拿到的可能低于你预期的市值。</li>
+</ol>
+<p>另外免责声明还有 4 条「投资者确认」（要求全选「已确认」）：① 不是美国人、不在美国、不是替美国人买；② 代表境外投资者、属离岸交易（Reg S）；③ 你所在司法辖区合法；④ 你不在受限名单内。受限名单原文含：奥地利、澳大利亚、比利时、保加利亚、塞浦路斯、捷克、德国、丹麦、爱沙尼亚、西班牙、芬兰、法国、英国、希腊、<b>中国香港</b>、克罗地亚、匈牙利、印尼、爱尔兰、冰岛、意大利、日本、立陶宛、卢森堡、拉脱维亚、马尔他、挪威、新西兰、菲律宾、波兰、葡萄牙、罗马尼亚、瑞典、斯洛文尼亚、斯洛伐克、泰国、土耳其、美国、古巴、伊朗、北韩、叙利亚等（名单会不定期修订，以你画面上的为准）。<b>你自己所在地是否合法，要你自己负责判断</b>——声明明写「自行全权负责」。</p>
+</div>
+
+<h2 id="s4">各自的玩法与特性（白话）</h2>
+
+<h3>A. bStocks 现货：「24 小时能买卖的 NVDA 影子」</h3>
+<ul>
+<li><b>适合</b>：想 24/7 买卖 NVDA 敞口、想放进自己的钱包、想丢进 BNB Chain 上的 DeFi。5 美元起买，可买零头。</li>
+<li><b>特性</b>：价格跟股价走但不等于股价；你买的是发行方的凭证，不是股票；分红变成乘数。</li>
+<li><b>限价单保护</b>：现货有价格保护带（相对 5 分钟均价，买单限价只能落在约 0.8～1.1 倍，卖单约 0.9～1.2 倍，<span class="tag v">实测</span>），不会让你乱挂到离谱价位。最小下单 5 USDT，市价单单笔最多约 1,323 枚。</li>
+<li><b>周末/夜盘的特性</b>：流动性差，价差更宽（实测见第 5 节）。</li>
+<li><b>坑</b>：地区限制（见你贴的清单，含中国香港、英国、日本、美国等一长串）；赎回不保证；托管与发行方信用风险。</li>
+</ul>
+
+<h3>B. 永续合约：「用 USDT 押 NVDA 涨跌，可以杠杆、可以做空」</h3>
+<ul>
+<li><b>适合</b>：短线交易、对冲、看空。是四条路里<b>流动性最好的</b>（成交约为现货 20 倍以上，<span class="tag v">实测</span>）。费用是否最低我没逐项比过 <span class="tag u">未证实</span>。</li>
+<li><b>资金费率</b>：每 8 小时结算一次（UTC 00:00/08:00/16:00），上下限 ±2%（实测，<span class="tag v">实测</span>）。最近一次 <b>+0.0132%</b>（多头付给空头）。年化约 <b>14.5%</b>（0.0132%×3×365，<span class="tag">推论</span>换算）。过去 30 期里，有 11 期是 0（两段都落在周末），其余在 0.0035%～0.0225% 之间，全部为正——也就是这段时间多头一直在付钱。</li>
+<li><b>保证金与风险参数</b>（<span class="tag v">实测</span> exchangeInfo）：所需初始保证金 5%（理论最高约 20 倍，但实际杠杆档位要登录才看得到，搜索结果有写 10x、也有写 20x，互相矛盾，<b>以你 App 显示为准</b>），维持保证金 2.5%，强平手续费 1.5%，限价单价格限制为指数±3%，最小下单价值 5 USDT。支持的订单类型包含止损、止盈、追踪止损。</li>
+<li><b>对冲玩法（常见）</b>：现货买 bStocks + 永续空同等数量＝尽量不赌涨跌，只赚「资金费率」。资金费率为正时，空头收钱。但要扣：现货手续费（0.1%）、合约手续费、保证金占用，还有周末资金费率为 0 的空窗，以及现货价和永续价不是完全同步的风险。年化 14.5% 是这一周的数字，不是保证。<span class="tag">推论</span>非建议。</li>
+<li><b>坑</b>：<b>周一跳空</b>（见第 6 节）；周末流动性薄，止损单可能滑价；杠杆高时一个跳空就强平。</li>
+</ul>
+
+<h3>C. 股票期权：「花小钱买一个方向的权利」</h3>
+<ul>
+<li><b>适合</b>：财报前后押波动、想用有限亏损（权利金）押方向。</li>
+<li><b>一期玩法限制</b>（<span class="tag g">转述</span>）：<b>只能买，不能卖出开仓（不能写期权/空仓）</b>；只支持限价单；最大亏损就是权利金。手续费主要用 USDC 扣，也接 BNB、USDT、USD1、U。</li>
+<li><b>最容易被坑</b>：<b>行权要自己提交指示，最晚到期前 30 分钟</b>。没提交，系统会在收盘前「尽力卖掉」你的仓位（不保证成交价），赚钱的单也可能作废或卖得很差。这跟你习惯的加密期权（到期自动结算）不一样。</li>
+<li>实物交割：行权会真的收到/交出股票，需要有足够资金/股票。</li>
+<li>行权价间距、合约乘数、保证金、费率：新闻稿没写，网页的期权链我也没法抓到（页面是动态加载的），所以<b>这些我没有数据</b> <span class="tag u">未证实</span>。美股标准期权一张通常对应 100 股，但币安是否照这个规格我没查到，别直接套用。</li>
+</ul>
+
+<h3>D. 真股票（拿来做对照）</h3>
+<ul>
+<li>币安 Stock Trading 由 Nest Trading 营运，通过外部券商，可买 7,000+ 档股票/ETF；5 美元起；费用：订单 ≤$350 收最低 $0.35，>$350 收 0.1% 价差、平台费免。24/5（三种时段：常规、延长、部分 24 小时）；T+1 交收。<span class="tag g">转述</span></li>
+<li>这是<b>唯一真有股东身份的</b>。bStocks 是把它「搬到链上」的凭证版本。</li>
+</ul>
+
+<h2 id="s5">现货 vs 永续：实测差异</h2>
+<div class="grid">
+<div class="card"><div class="sub">24h 成交额（USDT）</div><div class="k">永续 $1.97 亿</div><div>现货 bStocks $900 万<br>约 22 倍 <span class="tag v">实测</span></div></div>
+<div class="card"><div class="sub">未平仓 vs 现货总市值</div><div class="k">$1.5 亿 : $3,300 万</div><div>永续持仓约是 bStocks 全部市值的 4.5 倍 <span class="tag v">实测</span>+<span class="tag g">转述</span></div></div>
+<div class="card"><div class="sub">7 天平均价差（现货－永续）</div><div class="k">−0.084%</div><div>范围 −0.14%～−0.04%，168 小时全为负 <span class="tag v">实测</span></div></div>
+<div class="card"><div class="sub">周末：现货成交占永续</div><div class="k">5.2%</div><div>周末合计 永续 $3,290 万 / 现货 $170 万；平日也是约 5.1%。周末的价差绝对值 0.105%，平日 0.076% <span class="tag v">实测</span></div></div>
+</div>
+<ul>
+<li>现货长期比永续低一点，白话：<b>永续略贵</b>（多头付资金费率，永续价常有溢价）；套利者不会为 0.08% 进场，因为现货买卖一次手续费就是 0.1%。</li>
+<li>现货成交量占永续的比例平日、周末都是约 5%，说明现货不是周末才冷清，而是<b>长期就是小池子</b>。</li>
+<li>现货买一卖一的价差 1 档（约 0.4 个基点），对小额其实够用；但 <b>买盘前 5 档只有约 44 枚（约 $1 万）</b>，大额会滑价。</li>
+</ul>
+
+<h3>资金费率与周末（近 30 期，UTC，<span class="tag v">实测</span>）</h3>
+<div class="tw"><table>
+<tr><th>时间</th><th>资金费率</th><th>标记价</th><th>备注</th></tr>
+<tr><td>9/25 16:00 (周五)</td><td>+0.0161%</td><td>225.30</td><td>最后一期正常</td></tr>
+<tr><td>9/26 00:00 (周六)</td><td>+0.0168%</td><td>225.15</td><td>之后归零</td></tr>
+<tr><td>9/26 08:00 – 9/28 00:00</td><td>0</td><td>224.5～225.1</td><td>连续 6 期为 0（美股休市）</td></tr>
+<tr><td>9/28 08:00 (周一)</td><td>+0.0077%</td><td>223.34</td><td>资金费率恢复</td></tr>
+<tr><td>9/28 16:00</td><td>+0.0089%</td><td>230.35</td><td>8 小时内标记价 +3.1%</td></tr>
+</table></div>
+<p>白话推论：休市时指数不再动，永续价和指数几乎没有「溢价」可算，资金费率就是 0；这是我从数据看出来的规律 <span class="tag">推论</span>，币安没有为股票类明文写过这条规则。所以<b>周末持有永续不会被扣资金费，但也没有人保证价格不乱动</b>——周一 9/28 当天日高到 233.12，收盘约 229.5，前周五收盘 224.98。</p>
+<p>另有第三方研究（Phemex）提到 2025-26 年某次三日长假期间 NVDA 永续 89.5 小时内高低只差 0.38%，比比特币还稳，但是那是「没有新信息」的状况，一旦重新开市，消息集中释放，<b>跳空风险就是最大风险</b> <span class="tag g">转述</span>。</p>
+
+<h2 id="s5b">盘中 vs 盘后 vs 夜盘：实测</h2>
+<p class="sub">快照时间 2026-09-30 03:05 UTC（纽约 23:05）。美股正式盘后（16:00–20:00 ET＝UTC 20:00–24:00）已结束，现在算夜盘。基准是 9/29 平日盘中（UTC 14:00–20:00）。全部 <span class="tag v">实测</span>（1 小时 K 线＋订单簿）。</p>
+<div class="tw"><table>
+<tr><th>时段（UTC）</th><th>永续成交/小时</th><th>现货成交/小时</th><th>永续振幅/小时</th><th>笔数/小时（永续／现货）</th><th>现货相对永续</th></tr>
+<tr><td>开盘首小时 13:00</td><td>$6,000 万</td><td>$170 万</td><td>1.60%</td><td>8.1 万／1.1 万</td><td>−8.2bp</td></tr>
+<tr><td><b>盘中</b> 14–20</td><td><b>$1,368 万</b></td><td><b>$61 万</b></td><td><b>0.78%</b></td><td>2.34 万／3,400</td><td>−7.8bp</td></tr>
+<tr><td><b>盘后</b> 20–24</td><td><b>$277 万</b></td><td><b>$12 万</b></td><td><b>0.23%</b></td><td>4,100／730</td><td>−6.1bp</td></tr>
+<tr><td>夜盘／盘前 00–13</td><td>$652 万</td><td>$39 万</td><td>0.43%</td><td>1.07 万／3,300</td><td>−7.6bp</td></tr>
+</table></div>
+<p class="sub">开盘首小时只有 2 天样本，仅供参考。bp＝基点（0.01%）。</p>
+<h3>盘中对盘后的影响</h3>
+<ul>
+<li><b>量缩到约 20%</b>：永续 1,368 万→277 万，现货 61 万→12 万，成交笔数约 17%，振幅约 30%。</li>
+<li><b>价格是接着盘中走，不是重新定价</b>：9/29 盘中收 227.56（永续），从前晚 229.6 跌约 1%；盘后只回到 228.0–228.6，现在 228.04。盘中定方向，盘后小区间整理。</li>
+<li><b>价差反而变窄</b>：盘后现货比永续低 6.1bp，盘中是 7.8bp。推论是盘后两边都少人动，价格黏在一起 <span class="tag">推论</span>。方向仍是现货略低，且远小于 0.1% 手续费，套不了。</li>
+<li><b>现货占永续成交比例</b>：盘中约 4.5%，盘后约 4.3%，夜盘约 6%。现货一直是小池子，盘后没有比盘中更差。</li>
+</ul>
+<h3>此刻订单簿深度</h3>
+<div class="tw"><table>
+<tr><th></th><th>买一卖一价差</th><th>±0.1% 买／卖</th><th>±0.5% 买／卖</th><th>±1% 买／卖</th></tr>
+<tr><td>永续 NVDAUSDT</td><td>0.44bp（1 档）</td><td>$31 万／$55 万</td><td>$176 万／$177 万</td><td>$248 万／$272 万</td></tr>
+<tr><td>现货 NVDAB/USDT</td><td>0.44bp（1 档）</td><td>$16 万／$7.5 万</td><td>$33 万／$29 万</td><td>$34 万／$30 万</td></tr>
+</table></div>
+<ul>
+<li>两边价差都只有 1 个最小跳动，小单没有滑点问题。</li>
+<li>现货 ±0.5% 内只有约 $30 万，超出这个范围几乎没有挂单；单笔 $10 万以上市价单会明显滑价。永续深度约是现货的 5–6 倍。</li>
+<li><b>限制</b>：深度只有现在的快照，没有盘中历史深度，所以「盘中 vs 盘后的深度变化」是用成交量、笔数、振幅推算的。最后一根 03:00 K 线只走了约 5 分钟，不纳入比较。</li>
+<li>最近一期资金费率 +0.0138%，永续标记价 228.04、指数 227.94。</li>
+<li><b>下一个风险窗口</b>：UTC 13:30（北京 21:30）美股开盘，开盘首小时量和振幅是盘后的 10 倍以上。</li>
+</ul>
+
+<h2 id="s6">最容易踩的坑，按场景</h2>
+<div class="card warnbox">
+<ol>
+<li><b>以为 bStocks = 持股。</b>不是。没有股东权、没有投票、没有直接股息权，赎回受发行方条款限制。免责声明第 3、8 题就是在确认你懂这件事（见第 3.5 节逐题对照）。</li>
+<li><b>周末/夜盘价格是「小池子自己定」的。</b>bStocks 现货的深度只有数万美元。周末想卖可能卖不到理想价。</li>
+<li><b>永续杠杆遇周一跳空。</b>9/28 就出现 3% 左右的缺口。20 倍杠杆下 3% 跳空就是 60% 保证金损失；碰上强平手续费 1.5%，更惨。</li>
+<li><b>USDT 计价风险。</b>指数是用 USDT/USD 汇率换算的。USDT 折价时，你的 NVDA 敞口会被连带影响。<span class="tag">推论</span>（由代号 uindex(USDTUSD) 推出）</li>
+<li><b>期权忘了行权。</b>到期前 30 分钟没提交，赚钱的单可能被随便卖掉。</li>
+<li><b>股息/拆股的乘数机制。</b>转出 bStocks 到第三方钱包或 DeFi 前，先确认对方支持乘数；否则可能漏掉分红（第三方协议是否支持乘数，我没查 <span class="tag u">未证实</span>）。</li>
+<li><b>地区与资格。</b>bStocks 明确排除美国人与一长串司法辖区，并且会要求你声明自己不是美国人；币安保留随时限制/暂停/撤销你权限的权利。</li>
+<li><b>手续费叠加。</b>现货 0.1% 进 + 0.1% 出，就吃掉了 0.2%，比平常的价差大得多。</li>
+</ol>
+</div>
+
+<h2 id="s7">我没查到／没法确认的（别当已知）</h2>
+<ul>
+<li>bStocks 的<b>具体托管人名称</b>、<b>储备证明频率与审计方</b>、<b>官方做市商</b>：<span class="tag u">未证实</span>。</li>
+<li>股票永续的<b>标记价公式</b>、<b>休市期间指数处理</b>（只看到商品类的公告）、<b>每个杠杆档位的上限和维持保证金率</b>（需要登录才能看到）：<span class="tag u">未证实</span>。</li>
+<li>股票期权的<b>合约乘数、行权价间距、费率、保证金、即时期权链</b>：网页动态加载，我抓不到 <span class="tag u">未证实</span>。</li>
+<li>现货手续费 0.1% 来自行情页的转述，你的实际费率看 VIP 等级与 BNB 抵扣。</li>
+<li>币安官方公告与 FAQ 原文我大多是通过摘要读的（部分页面被挡：403/402/404），关键数字请以币安 App/官网当下显示为准。</li>
+<li>Binance 自己的「Proof of Collateral / bStocks Collateral」页面我没能抓到内容，这是查证 1:1 最直接的地方，建议你自己看一次。</li>
+</ul>
+
+<h2>来源</h2>
+<ul class="sub">
+<li>币安公开 API：<code>fapi.binance.com</code>（premiumIndex、ticker/24hr、exchangeInfo、constituents、fundingRate、fundingInfo、openInterest、klines）；<code>api.binance.com</code>（ticker/24hr、depth、exchangeInfo、klines）；<code>eapi.binance.com/eapi/v1/exchangeInfo</code>。快照时间 2026-09-29 约 15:42 UTC。</li>
+<li>bStocks：<a href="https://www.binance.com/en/academy/articles/what-are-bstocks-a-guide-to-tokenized-stocks-on-binance">币安学院</a>、<a href="https://www.binance.com/en/support/faq/detail/f0c03cd6509a4085b4cce1636f16be38">币安 FAQ</a>、<a href="https://www.manilatimes.net/2026/06/12/tmt-newswire/pr-newswire/binance-exchange-launches-bstocks-tokenized-securities-11-backing-and-247-trading/2364231/amp">上线新闻稿</a>、<a href="https://yellow.com/asset/nvdab">yellow.com NVDAB</a>（第三方）。</li>
+<li>股票永续：<a href="https://www.techflowpost.com/en-US/newsletter/136294">交易时间与指数调整（商品类）</a>、<a href="https://phemex.com/academy/tradfi-perpetuals-moving-during-us-market-closed">Phemex 休市研究</a>。</li>
+<li>期权：<a href="https://www.prnewswire.com/news-releases/binance-adds-us-stock-options-to-its-multi-asset-platform-302866167.html">币安新闻稿</a>、<a href="https://cryptoslate.com/binance-deepens-tradfi-push-with-physically-settled-options-on-over-1000-us-equities/">CryptoSlate</a>、<a href="https://www.binance.com/zh-CN/stocks/options/EQ_NVDA">NVDA 期权页</a>。</li>
+<li>真股票：<a href="https://www.binance.com/en/support/faq/detail/a7469c7703524024b5bc2d492b03639d">币安 Stock Trading FAQ</a>。</li>
+</ul>
+<div class="sib sub" style="border-top:1px solid var(--line);margin-top:40px;padding-top:12px">本系列：<b>英伟达（美股/bStocks）</b>　<a href="binance-commodities-report.html">大宗商品</a>　<a href="binance-fx-report.html">外汇</a>　<a href="binance-index-report.html">指数</a></div>
+</main>
+</body>
+</html>

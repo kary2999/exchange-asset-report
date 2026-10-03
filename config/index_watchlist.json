@@ -1,0 +1,149 @@
+{
+ "note": "「追踪标的」「倍数」是按代号识别，不是逐个核对基金文件。成稿时这一栏必须标 推论，除非 basis 写明有新闻稿对应。新增品种先用 exchangeInfo 的 underlyingType 和代号核对，再加进来。",
+ "contracts": [
+  {
+   "symbol": "QQQUSDT",
+   "label": "纳指 100（Invesco QQQ）",
+   "multiple": "1×",
+   "basis": "新闻稿明确：跟踪 Nasdaq-100"
+  },
+  {
+   "symbol": "SPYUSDT",
+   "label": "标普 500（SPDR SPY）",
+   "multiple": "1×",
+   "basis": "新闻稿明确"
+  },
+  {
+   "symbol": "IWMUSDT",
+   "label": "罗素 2000（小盘股）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "TQQQUSDT",
+   "label": "纳指 100 三倍做多",
+   "multiple": "3×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "SQQQUSDT",
+   "label": "纳指 100 三倍做空",
+   "multiple": "-3×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "SOXLUSDT",
+   "label": "半导体指数三倍做多",
+   "multiple": "3×",
+   "basis": "新闻稿明确：Direxion 半导体 3X 多"
+  },
+  {
+   "symbol": "SOXSUSDT",
+   "label": "半导体指数三倍做空",
+   "multiple": "-3×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "SMHUSDT",
+   "label": "半导体 ETF（VanEck SMH）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "EWYUSDT",
+   "label": "韩国（MSCI Korea）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "KORUUSDT",
+   "label": "韩国三倍做多",
+   "multiple": "3×",
+   "basis": "新闻稿：韩国杠杆 ETF"
+  },
+  {
+   "symbol": "EWJUSDT",
+   "label": "日本（MSCI Japan）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "EWTUSDT",
+   "label": "台湾（MSCI Taiwan）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "EWZUSDT",
+   "label": "巴西（MSCI Brazil）",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "KODEX200USDT",
+   "label": "韩国 KOSPI 200（KRX 上市）",
+   "multiple": "1×",
+   "basis": "行业常识；指数用 KRW 计价"
+  },
+  {
+   "symbol": "UVXYUSDT",
+   "label": "VIX 短期期货 ETF",
+   "multiple": "1.5×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "TMFUSDT",
+   "label": "美国长期国债三倍做多",
+   "multiple": "3×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "TBTUSDT",
+   "label": "美国长期国债两倍做空",
+   "multiple": "-2×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "GDXUSDT",
+   "label": "金矿股 ETF",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "XLEUSDT",
+   "label": "能源板块 ETF",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "XBIUSDT",
+   "label": "生物科技 ETF",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "URNMUSDT",
+   "label": "铀矿股 ETF",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "BITOUSDT",
+   "label": "比特币期货 ETF",
+   "multiple": "1×",
+   "basis": "行业常识"
+  },
+  {
+   "symbol": "BTCDOMUSDT",
+   "label": "比特币市值占比指数（加密指数）",
+   "multiple": "-",
+   "basis": "合约标的类型 INDEX；含义按行业常识"
+  },
+  {
+   "symbol": "ALLUSDT",
+   "label": "币安加密指数合约",
+   "multiple": "-",
+   "basis": "成分未查到"
+  }
+ ]
+}

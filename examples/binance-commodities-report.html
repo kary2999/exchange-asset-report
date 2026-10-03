@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>币安大宗商品玩法拆解</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e4e3dd;--acc:#b8860b;--ok:#1a7f4b;--warn:#b45309;--bad:#b91c1c;--chip:#f1efe6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--fg:#ecebe4;--mut:#9a9990;--card:#1d1d1a;--line:#333330;--acc:#e0b040;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#26261f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+main{max-width:940px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:28px;margin:8px 0}
+h2{font-size:22px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{margin:6px 0}
+.sub{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.tldr{border-left:4px solid var(--acc)}
+.warnbox{border-left:4px solid var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--chip);white-space:nowrap}
+.tw{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:9px;background:var(--chip);margin-right:4px;white-space:nowrap}
+.v{color:var(--ok)} .g{color:var(--warn)} .u{color:var(--bad)}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span.b{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow span.a{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.k{font-size:24px;font-weight:600}
+nav{display:flex;flex-wrap:wrap;gap:4px 12px}
+nav a{font-size:14px;color:var(--acc)}
+.sib{border-top:1px solid var(--line);margin-top:40px;padding-top:12px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>币安大宗商品玩法拆解</h1>
+<p class="sub">数据快照：2026-10-02 约 15:10 UTC（周五）。标「实测」的数字都是这个时间点直接打币安公开 API 拿的，会变。周末对比取上一个完整周末：9/25 21:00 UTC 到 9/27 22:00 UTC。<br>可信度标记：<span class="tag v">实测</span>API 直接拿到　<span class="tag g">转述</span>官方公告/新闻稿/媒体，我读到但没能对原文　<span class="tag u">未证实</span>找不到可靠来源，别当真　<span class="tag">推论</span>我从数据推的，不是官方说法</p>
+<nav><a href="#s0">先看结论</a><a href="#s1">品种一览</a><a href="#s2">价格哪来</a><a href="#s3">谁生产的</a><a href="#s4">各自玩法</a><a href="#s5">周末实测</a><a href="#s6">坑</a><a href="#s7">没查到的</a></nav>
+
+<h2 id="s0">先看结论</h2>
+<div class="card tldr"><ul>
+<li><b>币安现在有 8 个大宗商品永续合约</b>：黄金、白银、铂金、钯金、铜、WTI 原油、布伦特原油、天然气。另有<b>黄金、白银的期权</b>。币安还上架了代币化黄金现货（PAXG、XAUT）。<span class="tag v">实测</span></li>
+<li><b>真正有量的只有 4 个</b>：黄金（24h 成交 $27 亿）、WTI（$13 亿）、白银（$10.6 亿）、布伦特（$6.4 亿）。铂、钯、铜、天然气每天只有 $900 万到 $4,100 万，进出都比黄金难得多。<span class="tag v">实测</span></li>
+<li><b>价格不是币安自己撮合出来的</b>。指数价由外部数据商加权，币安自己的盘口权重只有 0.76%～9%。其中<b>布伦特 91% 的权重来自另一家永续平台 Hyperliquid 的 xyz:BRENTOIL 市场</b>，铜 82% 来自 RedStone 预言机。这是整个报告最值得记住的一点。<span class="tag v">实测</span></li>
+<li><b>周末是另一个市场</b>：黄金、白银周末成交量只剩平日的 6%～8%，资金费率全部归零；原油周末照样大幅波动（高低差 4.7%），周日开盘还跳空 +1.3%。<span class="tag v">实测</span></li>
+<li>币安的大宗商品合约是币安自己发的衍生品，用 USDT 结算。按产品设计，没有实物交割或仓单（这是我的推论，没有币安明文）。监管主体公告写的是 Nest Exchange Limited（阿布扎比 ADGM 的 FSRA 监管）。<span class="tag g">转述</span></li>
+<li>这不是投资建议。</li>
+</ul></div>
+
+<h2 id="s1">一共有哪些，一张表看懂</h2>
+<div class="tw"><table><tr><th>合约</th><th>品种</th><th>24h 成交(百万美元)</th><th>未平仓(百万美元)</th><th>指数来源数</th><th>最大权重来源</th><th>买一卖一价差</th><th>±0.5% 深度 买/卖(美元)</th></tr><tr><td>XAUUSDT</td><td>黄金</td><td>2,712</td><td>611</td><td>6</td><td>dxFeed / Kaiko / Pyth Pro 各 26.7%</td><td>0.02bp</td><td>1,273万 / 1,540万</td></tr><tr><td>XAGUSDT</td><td>白银</td><td>1,055</td><td>243</td><td>6</td><td>同上</td><td>1.65bp</td><td>919万 / 897万</td></tr><tr><td>XPTUSDT</td><td>铂金</td><td>12.1</td><td>4.5</td><td>4</td><td>dxFeed / Pyth Pro 各 43.2%</td><td>2.93bp</td><td>17万 / 15万</td></tr><tr><td>XPDUSDT</td><td>钯金</td><td>9.5</td><td>4.5</td><td>4</td><td>dxFeed / Pyth Pro 各 43.2%</td><td>0.09bp</td><td>11万 / 10万</td></tr><tr><td>COPPERUSDT</td><td>铜</td><td>14.3</td><td>7.7</td><td>3</td><td>RedStone 82.0%</td><td>1.52bp</td><td>41万 / 37万</td></tr><tr><td>CLUSDT</td><td>WTI 原油</td><td>1,339</td><td>240</td><td>4</td><td>Pyth Pro 45% / RedStone 45%</td><td>1.11bp</td><td>351万 / 424万</td></tr><tr><td>BZUSDT</td><td>布伦特原油</td><td>641</td><td>317</td><td>2</td><td><b>Hyperliquid 90.9%</b></td><td>0.99bp</td><td>304万 / 1,046万</td></tr><tr><td>NATGASUSDT</td><td>天然气</td><td>41.0</td><td>12.2</td><td>4</td><td>Pyth Pro 45% / RedStone 45%</td><td>3.34bp</td><td>162万 / 165万</td></tr></table></div>
+<p class="sub">以上 <span class="tag v">实测</span>。价差单位 bp＝0.01%。深度指买一卖一中间价上下 0.5% 范围内的挂单总额。</p>
+<p>另外两类相关产品：</p>
+<ul>
+<li><b>黄金、白银期权</b>：欧式、USDT 现金交割，2026-07-29 上线。<span class="tag g">转述</span>目前还有两个到期日（今天 10-02 21:00 UTC 和下周五 10-09 21:00 UTC），黄金 54 个合约、白银 48 个。<span class="tag v">实测</span></li>
+<li><b>代币化黄金现货</b>：PAXGUSDT（$4,153）、XAUTUSDT（$4,151）。<span class="tag v">实测</span>这两个是别家发行的黄金代币（PAXG 是 Paxos，XAUT 是 Tether，这是常识，本次没核对发行文件），币安只是上架交易。</li>
+</ul>
+
+<h2 id="s2">价格是怎么来的（重点）</h2>
+<p>永续合约有三个价：<b>指数价</b>（外部数据加权）、<b>标记价</b>（用来算强平和盈亏）、<b>成交价</b>（盘口上的实际价）。下面是直接打 <code>/fapi/v1/constituents</code> 拿到的指数成分与权重：<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>品种</th><th>指数成分与权重</th></tr><tr><td>黄金 XAU</td><td>dxFeed 26.72%（XAU/USD:AFX）、Kaiko 26.72%（KK_RFR_XAUUSD）、Pyth Pro 26.72%（XAU）、Massive 11.45%（C.XAU/USD）、Hyperliquid 7.63%（xyz:GOLD）、币安自己 0.76%</td></tr><tr><td>白银 XAG</td><td>结构同黄金：dxFeed / Kaiko / Pyth Pro 各 26.72%，Massive 11.45%，Hyperliquid（xyz:SILVER）7.63%，币安 0.76%</td></tr><tr><td>铂金 XPT、钯金 XPD</td><td>dxFeed 43.21%、Pyth Pro 43.21%、Hyperliquid（xyz:PLATINUM / xyz:PALLADIUM）12.35%、币安 1.23%</td></tr><tr><td>铜 COPPER</td><td>RedStone 81.97%（XCU.Y）、Hyperliquid（xyz:COPPER）16.39%、币安 1.64%</td></tr><tr><td>WTI 原油 CL</td><td>Pyth Pro 45.05%（<code>WTI_NOV_A</code>）、RedStone 45.05%（<code>WTI.Y</code>）、Hyperliquid（xyz:CL）9.01%、币安 0.90%</td></tr><tr><td>布伦特 BZ</td><td><b>Hyperliquid 90.91%（xyz:BRENTOIL）、币安 9.09%，仅此两个来源</b></td></tr><tr><td>天然气 NATGAS</td><td>Pyth Pro 45.05%（<code>NATGAS_NOV_A</code>）、RedStone 45.05%（<code>GAS.Y</code>）、Hyperliquid 9.01%、币安 0.90%</td></tr></table></div>
+<ul>
+<li>每个来源代号后面都带 <code>//uindex(USDTUSD)</code>，意思是外部报价是美元，要再乘 USDT/USD 汇率换成 USDT。<b>USDT 偏离 1 美元，会直接传到所有大宗合约的价格上。</b><span class="tag">推论</span></li>
+<li><b>Hyperliquid 的 xyz: 前缀</b>：这些是 Hyperliquid 上第三方部署的永续市场（我的判断，常识性推论<span class="tag">推论</span>），也就是<b>另一家永续交易所自己撮合出来的价格</b>，不是传统交易所的报价。布伦特把 91% 的权重放在这一个来源上，等于布伦特永续的价格基本就是 Hyperliquid 那边的价格，币安没有第二个独立来源来校验。</li>
+<li><b>原油和天然气代号里带月份</b>：<code>WTI_NOV_A</code>、<code>NATGAS_NOV_A</code>。这两个预言机报的是指定月份的期货合约价（现在是 11 月合约）。期货会到期、需要换月，换月时价格可能出现台阶。币安怎么处理换月我没查到。<span class="tag u">未证实</span></li>
+<li>币安公告：常规时段指数每秒更新、多家数据商加权；周末和假日切换到「订单簿 EWMA 模式」（用币安自己订单簿价格做指数移动平均），标记价和指数价之间有偏离上限，商品类为 ±3%。<span class="tag g">转述</span>商品类的休市窗口是每周五 17:00 ET 到周日 18:00 ET，每天 17:00 到 18:00 ET 还有一小时休市（周五 21:00 UTC 到周日 22:00 UTC）。</li>
+<li>价格保护带（实测，exchangeInfo）：黄金限价单只能落在标记价 ±2% 以内，其他商品 ±3%。<span class="tag v">实测</span></li>
+<li>标记价怎么从指数算出来，币安对商品类的专用公式我没找到。<span class="tag u">未证实</span></li>
+</ul>
+<h3>期权的价格</h3>
+<ul>
+<li>期权是币安自己的期权系统（接口在 <code>eapi.binance.com</code>），和股票期权（走 Alpaca）完全不是一回事。<span class="tag v">实测</span></li>
+<li>期权有自己的标的指数接口，数值和永续指数接近但不完全相同（取数时间点不同）。是否与永续是同一套来源，我没查到。<span class="tag u">未证实</span></li>
+<li>CL、BZ 在期权标的清单里，但<b>当前没有任何挂牌合约</b>。<span class="tag v">实测</span></li>
+</ul>
+
+<h2 id="s3">谁生产的（产品链）</h2>
+<h3>永续合约</h3>
+<div class="flow"><span class="b">外部数据商 + Hyperliquid + 币安盘口</span><span class="a">→ 加权</span><span class="b">指数价</span><span class="a">→</span><span class="b">标记价 + 币安撮合引擎</span><span class="a">→</span><span class="b">USDT 保证金的多空仓位</span></div>
+<ul>
+<li>合约类型字段是 <code>TRADIFI_PERPETUAL</code>，标的类型 <code>COMMODITY</code>。<span class="tag v">实测</span></li>
+<li>上线时间：黄金 2025-12-11，白银 2026-01-07，铂金钯金 2026-01-30，铜 2026-03-06，原油和天然气 2026-04-01。<span class="tag v">实测</span></li>
+<li>公告称 TradFi 永续由 Nest Exchange Limited 提供，它是币安的实体，被 ADGM 的 FSRA 认可为投资交易所。这份公告写的是黄金白银首发，其他品种是否同一主体，我没找到原文。<span class="tag g">转述</span><span class="tag u">未证实</span></li>
+<li>没有实物、没有仓单、没有到期。你的对手方是市场上的其他交易者，资金费率在多空双方之间转移。<span class="tag">推论</span>币安的风控与保险机制细节我没查。<span class="tag u">未证实</span></li>
+</ul>
+<h3>期权</h3>
+<div class="flow"><span class="b">你在币安下单</span><span class="a">→</span><span class="b">币安自己的期权撮合</span><span class="a">→</span><span class="b">到期按指数价现金结算为 USDT</span></div>
+<ul>
+<li>欧式（只能到期行权，不能提前）、USDT 现金交割，没有标的物可持有。买方最大亏损是权利金，多头没有强平风险。<span class="tag g">转述</span></li>
+<li>合约类型 <code>TRADFI_OPTIONS</code>。黄金 20 个行权价（3,850 到 4,650），白银 14 个（56 到 69）。每张合约单位 1，最小下单 0.01 张。<span class="tag v">实测</span></li>
+<li>期权清单里标的的 <code>nakedSell</code> 字段对黄金、白银、原油（WTI、布伦特）都是 false，也就是<b>不允许裸卖</b>（只有 BTC、ETH 是 true，BNB、SOL 等也是 false）。<span class="tag v">实测</span></li>
+<li>交易时间跟随标的：周日 18:00 到周五 17:00 ET，每天 17:00 到 18:00 ET 休市。<span class="tag g">转述</span></li>
+</ul>
+<h3>代币化黄金现货（PAXG、XAUT）</h3>
+<ul>
+<li>发行方和实物托管方不是币安，币安只提供交易。我没有读这两个代币的发行文件，赎回规则、托管细节都没核实。<span class="tag u">未证实</span></li>
+</ul>
+
+<h2 id="s4">玩法与特性（白话）</h2>
+<h3>A. 黄金永续：「24 小时能押黄金涨跌，可以杠杆、可以做空」</h3>
+<ul>
+<li><b>适合</b>：避险、宏观事件交易（非农、CPI、美联储）、周末新闻交易、用 USDT 对冲黄金敞口。</li>
+<li><b>特性</b>：这是币安流动性最好的传统资产合约。公告提到黄金永续单日峰值成交 $77.7 亿，白银 $72.7 亿。<span class="tag g">转述</span></li>
+<li><b>资金费率每 4 小时结算一次</b>（不是股票的 8 小时），上下限 ±0.5%。最近一期黄金 +0.0120%。过去 60 期里 16 期为 0（含周末全部 12 期），其余平均 +0.0067%，最高 +0.0199%。折算年化约 14.7%（0.0067%×6×365）。<span class="tag v">实测</span><span class="tag">推论</span></li>
+<li><b>杠杆</b>：新闻说黄金白银最高 50 倍、原油天然气最高 100 倍，但我没法用接口验证，也看到过说法互相矛盾，<b>以你 App 里显示的为准</b>。<span class="tag g">转述</span><span class="tag u">未证实</span></li>
+<li><b>这周的真实波动</b>：平日（周一到周四）黄金日均高低差 2.06%，白银 3.03%。上周末的价格约 4,290，现在约 4,146，一周下跌约 3.3%。<span class="tag v">实测</span></li>
+<li><b>坑</b>：杠杆高时 2% 的日内波动就是爆仓；周末流动性只剩 8%。</li>
+</ul>
+<h3>B. 原油（WTI、布伦特）：「地缘和库存数据的赛场」</h3>
+<ul>
+<li><b>适合</b>：做地缘事件、OPEC 会议、每周库存数据。两个合约还能做<b>价差对冲</b>（一边多 WTI 一边空布伦特），降低方向风险。<span class="tag">推论</span></li>
+<li><b>特性</b>：成交量大（WTI 24h $13 亿），平日日均高低差 5.4%，比黄金还大。资金费率经常是 0（WTI 过去 60 期里 42 期为 0，非零平均 −0.0073%）。<span class="tag v">实测</span></li>
+<li><b>布伦特的风险</b>：指数几乎全靠 Hyperliquid 一个来源（91%）。如果那边的市场出问题，币安这边没有第二个来源兜底。<span class="tag">推论</span></li>
+<li><b>换月风险</b>：指数来源写着 11 月合约。每次月合约换月的处理方式，币安没公布。<span class="tag u">未证实</span></li>
+<li><b>合约大小的矛盾</b>：新闻说一张是 1,000 桶，但接口显示最小下单量 0.01、成交额 $5 起，按接口看是以「桶」为单位下单。以 App 显示为准。<span class="tag g">转述</span><span class="tag v">实测</span></li>
+</ul>
+<h3>C. 白银、铂金、钯金、铜、天然气</h3>
+<ul>
+<li><b>白银</b>：比黄金波动更大（平日日均 3.03%），成交 $10.6 亿，流动性够用。</li>
+<li><b>铂、钯、铜、天然气</b>：每天成交 $900 万到 $4,100 万，±0.5% 深度只有十几万到一百多万美元。价差看起来小（0.09bp 到 3bp），但<b>大单会明显滑价</b>。铜 82% 的价格来自一个预言机来源。<span class="tag v">实测</span></li>
+</ul>
+<h3>D. 黄金、白银期权：「花一点权利金押方向，亏损封顶」</h3>
+<ul>
+<li><b>适合</b>：想要有限亏损、押事件。目前挂牌的只有两个到期日：今天（当天到期）和下周五（一周内到期）。我没查币安是否固定为「每日、每周」两档，所以「当天到期就是零日期权，时间价值损耗极快」是我的推论。<span class="tag v">实测</span><span class="tag">推论</span></li>
+<li><b>真实样本</b>：今天 10-02 到期的黄金 4,150 看涨期权，快照时标记价 16.16 USDT，隐含波动率 42.6%，Delta 0.47，Theta −37.6。距离到期只剩约 6 小时。<span class="tag v">实测</span>这个隐含波动率对应的是当天剩余几个小时；至于是不是「偏高」、为什么，我没有拿它和黄金的历史波动率对比，不下结论。</li>
+<li><b>注意</b>：只能到期行权；不能裸卖，所以你只能当买方；价格上下限由币安规定（该样本上限 29.09、下限 3.23）。</li>
+<li>期权的费率、保证金细节新闻稿没写，API 里初始保证金 15%、维持保证金 7.5% 的字段对应卖方，而卖方（裸卖）被禁止，所以实际用途我没确认。<span class="tag u">未证实</span></li>
+</ul>
+<h3>E. 现货黄金代币 vs 永续</h3>
+<ul>
+<li>PAXG 现货和黄金永续过去 7 天的价差平均 0.0bp，范围 −27.9bp 到 +18.4bp。<b>周末平均 −18.3bp</b>，也就是周末现货代币比永续便宜约 0.18%。<span class="tag v">实测</span></li>
+<li>这个价差不够抵消手续费，不能当无风险套利。<span class="tag">推论</span></li>
+</ul>
+
+<h2 id="s5">周末实测</h2>
+<p class="sub">上周末完整窗口：9/25 21:00 UTC 到 9/27 22:00 UTC（商品休市窗口），对比 9/28 到 10/1（周一到周四）。<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>品种</th><th>周末每小时成交 ÷ 平日</th><th>周末高低差</th><th>平日单日平均高低差</th><th>周五收盘到周日开盘跳空</th></tr><tr><td>黄金</td><td>8%</td><td>0.42%</td><td>2.06%</td><td>−0.14%</td></tr><tr><td>白银</td><td>6%</td><td>0.59%</td><td>3.03%</td><td>−0.28%</td></tr><tr><td>WTI 原油</td><td>16%</td><td>4.73%</td><td>5.36%</td><td>+1.30%</td></tr><tr><td>布伦特</td><td>17%</td><td>4.63%</td><td>5.58%</td><td>+1.39%</td></tr><tr><td>天然气</td><td>13%</td><td>2.58%</td><td>3.32%</td><td>−2.21%</td></tr></table></div>
+<ul>
+<li><b>黄金、白银周末几乎是冻结的</b>：成交量只剩 6%～8%，高低差 0.4%～0.6%，资金费率连续 12 期为 0。这符合「指数冻结、订单簿自己定价」的设计，但我没找到币安对此的明文说法。<span class="tag">推论</span></li>
+<li><b>原油周末照样动</b>：高低差 4.7% 接近平日一整天，周日开盘还有 +1.3%。我没有查周末发生了什么新闻，所以不确定是消息驱动，还是订单簿在没有外部参考时自己漂移。<span class="tag u">未证实</span></li>
+<li><b>天然气周日开盘跳空 −2.2%</b>。<span class="tag v">实测</span></li>
+</ul>
+
+<h2 id="s6">最容易踩的坑</h2>
+<div class="card warnbox"><ol>
+<li><b>周末成交只剩平日的 6%～17%</b>，止损单可能滑价；原油周末还会大幅波动。</li>
+<li><b>布伦特单一来源</b>：91% 权重在 Hyperliquid。</li>
+<li><b>原油和天然气换月</b>：指数代号带月份，换月处理不明。</li>
+<li><b>杠杆</b>：新闻说 50 到 100 倍，黄金平日日均波动 2%，原油 5%。</li>
+<li><b>小品种滑价</b>：铂、钯、铜、天然气深度很薄。</li>
+<li><b>资金费率每 4 小时一次</b>，持仓成本累积比股票更快。</li>
+<li><b>USDT 计价</b>：指数用 USDT/USD 汇率换算，USDT 脱锚会传导到价格。<span class="tag">推论</span></li>
+<li><b>期权只能到期行权，零日期权时间价值损耗极快</b>。</li>
+<li><b>地区与资格</b>：各合约对不同司法辖区开放情况不一样，公告没列清单，以币安 App 为准。<span class="tag u">未证实</span></li>
+</ol></div>
+
+<h2 id="s7">我没查到、不要当已知的</h2>
+<ul>
+<li>各品种的真实杠杆分档、维持保证金率：需要登录才能看 <code>leverageBracket</code>。<span class="tag u">未证实</span></li>
+<li>标记价对商品类的专用公式、休市期间的详细规则（只有公告摘要）。<span class="tag u">未证实</span></li>
+<li>原油天然气期货换月时币安的处理方式。<span class="tag u">未证实</span></li>
+<li>期权的费率、做市商、是否支持更多到期日。<span class="tag u">未证实</span></li>
+<li>币安对外公开的 TradFi 永续是否都在同一监管主体下（只有黄金白银公告写明 Nest Exchange Limited）。<span class="tag u">未证实</span></li>
+<li>币安官方公告原文我大多通过摘要读，部分页面被拦（403/404），关键数字请以 App 当下显示为准。</li>
+</ul>
+
+<h2>来源</h2>
+<ul class="sub">
+<li>币安公开 API：<code>fapi.binance.com</code>（exchangeInfo、constituents、premiumIndex、fundingRate、fundingInfo、klines、depth、ticker/24hr、openInterest）；<code>eapi.binance.com</code>（exchangeInfo、mark、index）；<code>api.binance.com</code>（PAXGUSDT 等现货）。快照 2026-10-02 约 15:10 UTC。</li>
+<li>黄金白银永续：<a href="https://www.prnewswire.com/news-releases/binance-launches-first-regulated-tradfi-perpetual-contracts-settled-in-stablecoin-starting-with-gold-and-silver-302656186.html">币安新闻稿</a>、<a href="https://cointelegraph.com/news/binance-gold-silver-perps-usdt-tradfi-settlement-layer">Cointelegraph</a>。</li>
+<li>原油天然气永续：<a href="https://news.bitcoin.com/binance-launches-oil-and-gas-perpetual-futures-with-100x-leverage-amid-iran-war-energy-crisis/">Bitcoin.com 报道</a>。</li>
+<li>休市定价规则：<a href="https://www.techflowpost.com/en-US/newsletter/136294">TechFlow 对币安公告的整理</a>。</li>
+<li>黄金白银期权：<a href="https://www.kitco.com/news/article/2026-07-30/gold-and-silver-options-now-trading-binance-crypto-platform">Kitco</a>。</li>
+</ul>
+<div class="sib sub">本系列：<a href="nvda-binance-report.html">英伟达（美股/bStocks）</a>　<b>大宗商品</b>　<a href="binance-fx-report.html">外汇</a>　<a href="binance-index-report.html">指数</a></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+tests/fixtures/_*
+snap_*.json
+snapshot*.json
+!tests/fixtures/mini_snapshot.json

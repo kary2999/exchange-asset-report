@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>币安指数玩法拆解</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e4e3dd;--acc:#b8860b;--ok:#1a7f4b;--warn:#b45309;--bad:#b91c1c;--chip:#f1efe6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--fg:#ecebe4;--mut:#9a9990;--card:#1d1d1a;--line:#333330;--acc:#e0b040;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#26261f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+main{max-width:940px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:28px;margin:8px 0}
+h2{font-size:22px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{margin:6px 0}
+.sub{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.tldr{border-left:4px solid var(--acc)}
+.warnbox{border-left:4px solid var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--chip);white-space:nowrap}
+.tw{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:9px;background:var(--chip);margin-right:4px;white-space:nowrap}
+.v{color:var(--ok)} .g{color:var(--warn)} .u{color:var(--bad)}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span.b{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow span.a{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.k{font-size:24px;font-weight:600}
+nav{display:flex;flex-wrap:wrap;gap:4px 12px}
+nav a{font-size:14px;color:var(--acc)}
+.sib{border-top:1px solid var(--line);margin-top:40px;padding-top:12px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>币安指数玩法拆解</h1>
+<p class="sub">数据快照：2026-10-02 约 15:10 UTC（周五）。标「实测」的数字都是这个时间点直接打币安公开 API 拿的，会变。周末对比取 9/25 21:00 UTC 到 9/27 22:00 UTC。<br>可信度标记：<span class="tag v">实测</span>API 直接拿到　<span class="tag g">转述</span>官方公告/新闻稿/媒体，我读到但没能对原文　<span class="tag u">未证实</span>找不到可靠来源，别当真　<span class="tag">推论</span>我从数据推的，不是官方说法</p>
+<nav><a href="#s0">先看结论</a><a href="#s1">有哪些产品</a><a href="#s2">价格哪来</a><a href="#s3">谁生产的</a><a href="#s4">各自玩法</a><a href="#s5">流动性实测</a><a href="#s6">坑</a><a href="#s7">没查到的</a></nav>
+
+<h2 id="s0">先看结论</h2>
+<div class="card tldr"><ul>
+<li><b>币安合约里没有直接的纳指、标普、道指指数合约</b>。我把全部永续合约代号扫了一遍，只命中 SPXUSDT，它是加密货币（标的类型 COIN），不是标普 500。<span class="tag v">实测</span></li>
+<li><b>想押股指，币安给的是 ETF 永续</b>：纳指 100 用 QQQUSDT，标普 500 用 SPYUSDT，小盘股用 IWMUSDT。另外还有大量杠杆 ETF（SOXL、TQQQ、KORU 等）和国家 ETF（韩国、日本、台湾、巴西）。<span class="tag v">实测</span></li>
+<li><b>币安另有现货版本的指数 ETF 代币</b>：QQQB、SPYB、TQQQB、SOXLB、KORUB 等，属于 bStocks 体系，是发行方 BTech Holdings 发行的「凭证」，不是 ETF 份额。<span class="tag v">实测</span><span class="tag g">转述</span></li>
+<li><b>成交极度集中</b>：SOXL（三倍半导体）一个合约 24h 成交 $20 亿，是所有指数类合约里最大的；其次 KORU（$5 亿）、SOXS（$2.4 亿）、QQQ（$1.8 亿）、DRAM（$1.4 亿，疑似存储主题 ETF，见下）、EWY（$1.1 亿）、SPY（$0.9 亿）。其余大多数每天不到 $1,000 万，有的只有十几万到几十万美元。<span class="tag v">实测</span></li>
+<li>主流 ETF 永续（QQQ、SPY 等）价格来自 6 个数据源加权（dxFeed、Kaiko、Pyth Pro 各 25.7%，Databento、Massive 各 11%，币安盘口 0.7%），和英伟达永续同一套（韩国 KODEX200 是例外，见价格部分）。<span class="tag v">实测</span></li>
+<li>币安的 ETF 永续是币安自己发的衍生品，不持有任何 ETF 份额；分红、除息怎么处理我没查到（见「没查到的」）。这不是投资建议。</li>
+</ul></div>
+
+<h2 id="s1">币安有哪些「指数」产品</h2>
+<h3>1. 股指类 ETF 永续合约（我整理的完整清单）</h3>
+<p>币安 TradFi 永续共 213 个，类型包括美股个股、ETF、港股、韩股、A 股相关、Pre-IPO、大宗、外汇。其中跟「指数」有关的主要是下面这些 ETF。<span class="tag v">实测</span></p>
+<p class="sub">「追踪标的」一栏是我根据代号识别的，QQQ、SPY、SOXL、KORU 有新闻对应；其余按行业常识，没有逐个核对基金文件。倍数一栏同样是我按基金常识填的，没逐个核对。<span class="tag">推论</span>成交与未平仓单位为<b>百万美元</b>，深度为美元（下面现货表的成交单位是万美元，别混）。</p>
+<div class="tw"><table><tr><th>合约</th><th>追踪标的</th><th>倍数</th><th>24h 成交(百万美元)</th><th>未平仓(百万美元)</th><th>买一卖一价差</th><th>±0.5% 深度 买/卖(美元)</th></tr><tr><td>QQQUSDT</td><td>纳指 100（Invesco QQQ）</td><td>1×</td><td>177.7</td><td>69.5</td><td>0.13bp</td><td>526万 / 423万</td></tr><tr><td>SPYUSDT</td><td>标普 500（SPDR SPY）</td><td>1×</td><td>87.6</td><td>27.8</td><td>0.13bp</td><td>409万 / 356万</td></tr><tr><td>IWMUSDT</td><td>罗素 2000（小盘股）</td><td>1×</td><td>0.8</td><td>0.8</td><td>3.91bp</td><td>6万 / 6万</td></tr><tr><td>TQQQUSDT</td><td>纳指 100 三倍做多</td><td>3×</td><td>80.3</td><td>24.5</td><td>1.23bp</td><td>64万 / 70万</td></tr><tr><td>SQQQUSDT</td><td>纳指 100 三倍做空</td><td>−3×</td><td>16.8</td><td>7.4</td><td>3.02bp</td><td>36万 / 27万</td></tr><tr><td>SOXLUSDT</td><td>半导体指数三倍做多</td><td>3×</td><td>2,033.6</td><td>209.5</td><td>0.6bp</td><td>239万 / 354万</td></tr><tr><td>SOXSUSDT</td><td>半导体指数三倍做空</td><td>−3×</td><td>242.1</td><td>20.9</td><td>3.42bp</td><td>81万 / 73万</td></tr><tr><td>SMHUSDT</td><td>半导体 ETF（VanEck SMH）</td><td>1×</td><td>0.6</td><td>0.6</td><td>1.9bp</td><td>4万 / 3万</td></tr><tr><td>EWYUSDT</td><td>韩国（MSCI Korea）</td><td>1×</td><td>114.5</td><td>32.1</td><td>0.52bp</td><td>136万 / 128万</td></tr><tr><td>KORUUSDT</td><td>韩国三倍做多</td><td>3×</td><td>502.2</td><td>54.7</td><td>4.44bp</td><td>146万 / 185万</td></tr><tr><td>EWJUSDT</td><td>日本（MSCI Japan）</td><td>1×</td><td>0.7</td><td>1.1</td><td>3.04bp</td><td>5万 / 3万</td></tr><tr><td>EWTUSDT</td><td>台湾（MSCI Taiwan）</td><td>1×</td><td>0.4</td><td>0.4</td><td>4.31bp</td><td>3万 / 2万</td></tr><tr><td>EWZUSDT</td><td>巴西（MSCI Brazil）</td><td>1×</td><td>0.5</td><td>0.3</td><td>8.13bp</td><td>4万 / 3万</td></tr><tr><td>KODEX200USDT</td><td>韩国 KOSPI 200（KRX 上市）</td><td>1×</td><td>0.1</td><td>0.0</td><td>20.24bp</td><td>0.2万 / 0.2万</td></tr><tr><td>UVXYUSDT</td><td>VIX 期货 ETF（波动率）</td><td>1.5×</td><td>2.7</td><td>1.4</td><td>5.78bp</td><td>4万 / 6万</td></tr><tr><td>TMFUSDT</td><td>美国长期国债三倍做多</td><td>3×</td><td>2.7</td><td>3.5</td><td>3.87bp</td><td>8万 / 3万</td></tr><tr><td>TBTUSDT</td><td>美国长期国债两倍做空</td><td>−2×</td><td>0.3</td><td>0.2</td><td>7.09bp</td><td>1万 / 1万</td></tr><tr><td>GDXUSDT</td><td>金矿股 ETF</td><td>1×</td><td>0.7</td><td>0.5</td><td>8.03bp</td><td>3万 / 2万</td></tr><tr><td>XLEUSDT</td><td>能源板块 ETF</td><td>1×</td><td>0.3</td><td>0.6</td><td>1.6bp</td><td>3万 / 3万</td></tr><tr><td>XBIUSDT</td><td>生物科技 ETF</td><td>1×</td><td>0.2</td><td>0.3</td><td>12.94bp</td><td>2万 / 3万</td></tr></table></div>
+<p class="sub">还有几个我没细看的：URNM（铀矿股）、BITO（比特币期货 ETF），24h 成交都不到 $100 万。<span class="tag v">实测</span>另有港股、韩股的杠杆产品（例如 CSOP 的三星、SK 海力士两倍杠杆 ETF），这里不展开。</p>
+<p><b>补充：我用 exchangeInfo 复扫 213 个 TradFi 永续后，发现下面这些也疑似是 ETF（代号像基金、行情与个股不同），上面表格漏了。</b>标的是我按代号猜的，没核对基金文件，所以全部是 <span class="tag">推论</span>；成交、未平仓是 <span class="tag v">实测</span>（未平仓由合约张数乘标记价估算）。</p>
+<div class="tw"><table><tr><th>合约</th><th>我猜的标的</th><th>24h 成交(百万美元)</th><th>未平仓(百万美元)</th><th>上线日</th></tr><tr><td>DRAMUSDT</td><td>存储/内存主题 ETF（猜测）。成交约 $1.44 亿，比 EWY、SPY 还大，是上表之外最大的一个</td><td>144.2</td><td>约 42.6</td><td>2026-05-18</td></tr><tr><td>KSTRUSDT</td><td>中国科创板 50 相关 ETF（猜测，类型标成 EQUITY 不是 CN_EQUITY）</td><td>3.6</td><td>约 1.9</td><td>2026-07-02</td></tr><tr><td>TZAUSDT</td><td>罗素 2000 三倍做空 ETF（猜测；对应上表的 IWM）</td><td>0.5</td><td>约 1.0</td><td>2026-07-16</td></tr><tr><td>BWETUSDT</td><td>航运/油轮主题 ETF（猜测）</td><td>1.4</td><td>约 0.3</td><td>2026-09-29</td></tr><tr><td>RAMUSDT、AGPUUSDT、SECZUSDT、SHAZUSDT</td><td>代号像小众主题或杠杆 ETF，我认不出是什么基金，不下结论</td><td>0.95 到 2.9</td><td>没查</td><td>-</td></tr></table></div>
+<p class="sub">还有两类我没放进来：①单只个股的杠杆 ETF 永续（NVDL、TSLL、MUU、INTW、SNXX、STXX 等），归英伟达/个股那一类；②港股的 CSOP 杠杆 ETF（三星、SK 海力士两倍）。另有 HK0625USDT（港股类型，我没认出是不是基金）。这个清单靠代号和行情推断，<b>仍可能漏掉或误收</b>。<span class="tag">推论</span></p>
+<h3>2. 加密指数合约（不是股票指数）</h3>
+<div class="tw"><table><tr><th>合约</th><th>说明</th><th>24h 成交</th><th>未平仓</th><th>可信度</th></tr><tr><td>BTCDOMUSDT</td><td>标的类型 INDEX。名字指向「比特币市值占比」（具体编制方法我没查，是否币安自编不确定）</td><td>$270 万</td><td>$1,450 万</td><td><span class="tag v">实测</span><span class="tag">推论</span></td></tr><tr><td>ALLUSDT</td><td>标的类型 INDEX（子类 Index、Crypto），具体成分我没查到</td><td>$100 万</td><td>$290 万</td><td><span class="tag u">未证实</span></td></tr><tr><td>DEFIUSDT</td><td>DeFi 指数合约，状态为 SETTLING（结算中，已不能交易）</td><td>-</td><td>-</td><td><span class="tag v">实测</span></td></tr></table></div>
+<h3>3. 现货指数 ETF 代币（bStocks）</h3>
+<p>我扫描币安现货，以 B 结尾的 USDT 交易对共 95 个（按代号筛的，其中混有 BNB、SHIB、AR 等并非 bStocks 的币，真正的 bStocks 约 85 个上下）。其中跟指数相关的：<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>现货</th><th>价格</th><th>24h 成交(万美元)</th><th>买一卖一价差</th><th>对应永续的价差</th><th>±0.5% 深度 买/卖(美元)</th></tr><tr><td>DRAMBUSDT</td><td>-</td><td>174</td><td>-</td><td>-</td><td>-</td></tr><tr><td>QQQBUSDT</td><td>749.54</td><td>243</td><td>0.13bp</td><td>−4.5bp</td><td>43万 / 32万</td></tr><tr><td>SPYBUSDT</td><td>768.91</td><td>75</td><td>0.13bp</td><td>−0.9bp</td><td>30万 / 29万</td></tr><tr><td>TQQQBUSDT</td><td>81.00</td><td>75</td><td>3.71bp</td><td>+0.1bp</td><td>14万 / 16万</td></tr><tr><td>SQQQBUSDT</td><td>33.15</td><td>14</td><td>3.02bp</td><td>−12.1bp</td><td>9万 / 8万</td></tr><tr><td>SOXLBUSDT</td><td>165.79</td><td>421</td><td>3.01bp</td><td>−3.6bp</td><td>11万 / 16万</td></tr><tr><td>SOXSBUSDT</td><td>29.25</td><td>321</td><td>6.83bp</td><td>−13.7bp</td><td>5万 / 7万</td></tr><tr><td>SMHBUSDT</td><td>632.55</td><td>4</td><td>5.54bp</td><td>+3.9bp</td><td>17万 / 17万</td></tr><tr><td>EWYBUSDT</td><td>190.74</td><td>49</td><td>1.57bp</td><td>−3.3bp</td><td>24万 / 19万</td></tr><tr><td>KORUBUSDT</td><td>22.57</td><td>503</td><td>8.85bp</td><td>0.0bp</td><td>15万 / 13万</td></tr></table></div>
+<p class="sub">DRAMB 一行：只看了成交额（实测），其他栏没取；它对应上面疑似存储主题 ETF 的永续。另有 SNXXB、STXB 等个股杠杆类，没放进来。</p>
+<p class="sub">「对应永续的价差」＝现货最新价相对永续标记价。负数表示现货更便宜。</p>
+<h3>4. 真股票与期权</h3>
+<ul>
+<li>币安 Stock Trading（Nest Trading 营运，走外部券商）可买 7,000+ 只美股与 ETF，是真份额。<span class="tag g">转述</span></li>
+<li>币安美股期权覆盖 1,000+ 只美股和 ETF，实物交割。我打开 QQQ 的页面没有看到期权数据，所以 <b>QQQ、SPY 是否有期权我没确认</b>。<span class="tag g">转述</span><span class="tag u">未证实</span></li>
+<li>币安自己的加密期权系统没有任何指数标的（只有 BTC、ETH、BNB、SOL、XRP、DOGE、黄金、白银、原油）。<span class="tag v">实测</span></li>
+</ul>
+
+<h2 id="s2">价格是怎么来的（重点）</h2>
+<h3>ETF 永续：和英伟达永续一套指数来源</h3>
+<p>QQQUSDT 的成分（接口 <code>/fapi/v1/constituents</code>）：<span class="tag v">实测</span></p>
+<div class="tw"><table><tr><th>数据源</th><th>代号</th><th>权重</th></tr><tr><td>dxFeed</td><td>QQQ:USLF24//uindex(USDTUSD)</td><td>25.74%</td></tr><tr><td>Kaiko</td><td>KK_RFR_QQQUSD//uindex(USDTUSD)</td><td>25.74%</td></tr><tr><td>Pyth Pro</td><td>QQQ//uindex(USDTUSD)</td><td>25.74%</td></tr><tr><td>Databento</td><td>QQQ//uindex(USDTUSD)</td><td>11.03%</td></tr><tr><td>Massive</td><td>FMV.QQQ//uindex(USDTUSD)</td><td>11.03%</td></tr><tr><td>币安期货</td><td>QQQUSDT</td><td>0.74%</td></tr></table></div>
+<ul>
+<li>我抽查了 SPY、IWM、TQQQ、SQQQ、SOXL、SMH、EWJ、EWY，成分与权重完全一样。<span class="tag v">实测</span></li>
+<li><b>它追踪的是 ETF 的交易价格，不是指数点位</b>。QQQ 价格大约 750 美元，对应的是纳斯达克 100 指数的一小份，两者会有溢价、折价、管理费、分红除息的差别。<span class="tag">推论</span></li>
+<li><b>韩国 KODEX200 是例外</b>：它是韩国交易所（KRX）上市的 ETF，用韩元计价。指数只有 2 个来源：Kaiko 49.5%、Pyth Pro 49.5%，币安 0.99%，并且要乘 USDT/KRW 汇率。当前 24h 成交只有约 $10 万，价差 20bp。<span class="tag v">实测</span></li>
+<li>休市怎么办：我只读到商品类、外汇类合约的休市规则（周末订单簿 EWMA 模式）。<b>ETF 永续在美股休市时怎么定价，币安公告里我没找到。</b><span class="tag u">未证实</span></li>
+<li>价格保护带：限价单只能落在标记价 ±3%。<span class="tag v">实测</span></li>
+</ul>
+<h3>现货 bStocks 指数 ETF：纯订单簿撮合</h3>
+<ul>
+<li>价格由供需决定，不是发行方定的，可能高于或低于标的 ETF。<span class="tag g">转述</span></li>
+<li>实测对永续标记价：QQQB −4.5bp、SPYB −0.9bp、TQQQB +0.1bp，反向或做空类（SQQQB −12.1bp、SOXSB −13.7bp）折价更大。<span class="tag v">实测</span></li>
+<li>现货比永续薄很多（SPYB 24h $75 万，SPY 永续 $8,760 万）。<span class="tag v">实测</span></li>
+</ul>
+<h3>杠杆 ETF 的价格</h3>
+<ul>
+<li>TQQQ、SOXL 这类 ETF 的价格本身就是「每日 3 倍」重置的产物，会随时间损耗（路径依赖）。币安的永续在它上面再加最高 20 倍杠杆。<span class="tag g">转述</span></li>
+<li>今天的波动：SOXL 24h +13.2%，SOXS −12.4%，KORU +13.4%，TQQQ +5.3%。<span class="tag v">实测</span>一天就能走完的行情。</li>
+</ul>
+
+<h2 id="s3">谁生产的</h2>
+<h3>ETF 永续</h3>
+<div class="flow"><span class="b">外部数据商 + 币安盘口</span><span class="a">→ 加权</span><span class="b">ETF 价格指数</span><span class="a">→</span><span class="b">标记价 + 币安撮合引擎</span><span class="a">→</span><span class="b">USDT 保证金仓位</span></div>
+<ul>
+<li>合约类型 <code>TRADIFI_PERPETUAL</code>，标的类型 <code>EQUITY</code>（ETF 与个股同一类）。杠杆最高 20 倍，资金费率每 8 小时、上下限 ±2%（新闻稿；接口 fundingInfo 也是 ±2%）。<span class="tag g">转述</span><span class="tag v">实测</span></li>
+<li>EWY 2026-03-16 上线，QQQ、SPY 2026-04-06，SOXL 05-15，IWM 06-08，KORU 06-22，更晚的有 KSTR（07-02）、TZA（07-16）、BWET（09-29）。<span class="tag v">实测</span></li>
+<li>币安研究报告称：2026 年 1 到 7 月 ETF 永续在币安累计成交 $1,160 亿，币安市场份额 74%，7 月成交前五是 SOXL、KORU、EWY、QQQ、SPY。这是币安自己发布的统计，口径我没法核对。<span class="tag g">转述</span></li>
+</ul>
+<h3>bStocks 指数 ETF 代币</h3>
+<div class="flow"><span class="b">真实 ETF 份额（经 Nest Trading 购入、受监管托管）</span><span class="a">→</span><span class="b">BTech Holdings 发行「凭证」</span><span class="a">→</span><span class="b">BNB Chain 上的 BEP-20 代币</span><span class="a">→</span><span class="b">币安现货</span></div>
+<ul>
+<li>发行、托管、分红的乘数机制、赎回限制，与英伟达 NVDAB 一样，详见英伟达报告。<span class="tag g">转述</span></li>
+<li>这些代币是否都已按同样条款获得 ADGM 招股书批准，我只确认 NVDAB 等首批五个。其余的我没有核对。<span class="tag u">未证实</span></li>
+</ul>
+
+<h2 id="s4">玩法与特性（白话）</h2>
+<h3>A. QQQ、SPY 永续：「24 小时押纳指、标普」</h3>
+<ul>
+<li><b>适合</b>：做大盘方向、做宏观事件（CPI、美联储）、周末新闻、用一个合约对冲手里的美股个股。</li>
+<li><b>最大优势</b>：流动性在股指类里最好。QQQ 买一卖一价差 0.13bp，±0.5% 深度双边各 $420 万到 $530 万。<span class="tag v">实测</span></li>
+<li><b>资金费率</b>：QQQ 过去 60 期里 36 期为 0，非零期平均 +0.0041%，范围 −0.104% 到 +0.026%。<span class="tag v">实测</span></li>
+<li><b>想押纳指，币安有 4 种路径</b>：①QQQ 永续（24/7、杠杆）；②QQQB 现货代币（24/7、可提币到钱包）；③TQQQ/SQQQ 三倍杠杆版（永续与现货都有）；④真 QQQ 股票（Binance Stock Trading）。</li>
+</ul>
+<h3>B. 杠杆 ETF 永续（SOXL、SOXS、TQQQ、SQQQ、KORU、TMF）：「杠杆叠杠杆」</h3>
+<ul>
+<li><b>特性</b>：SOXL 是币安成交最大的指数类合约（24h $20 亿，未平仓 $2.1 亿）。</li>
+<li><b>叠加杠杆</b>：ETF 本身 3 倍，永续最高 20 倍，理论上相当于 60 倍的指数敞口。一天 −5% 的指数波动，SOXL 约 −15%，20 倍永续仓位就是 −300%，早就爆仓。<span class="tag">推论</span></li>
+<li><b>损耗</b>：杠杆 ETF 每日重置，长期持有会因波动被磨损，反向 ETF（SQQQ、SOXS）也一样。<span class="tag g">转述</span></li>
+<li><b>价差更大</b>：SOXS、SQQQ 买一卖一价差 3bp 到 3.4bp。<span class="tag v">实测</span></li>
+</ul>
+<h3>C. 国家 ETF（EWY、EWJ、EWT、EWZ、KORU、KODEX200）：「押韩国、日本、台湾、巴西」</h3>
+<ul>
+<li>EWY（韩国）有量（24h $1.1 亿，深度 $130 万级），KORU 更活跃（$5 亿）。</li>
+<li>EWJ、EWT、EWZ 每天只有 $40 万到 $70 万成交，KODEX200 只有约 $10 万，价差 20bp。<span class="tag v">实测</span></li>
+<li><b>时区错位</b>：这些 ETF 在美股时间交易，但标的在亚洲、巴西，美股 ETF 价格里包含「夜间」信息的滞后与折溢价。<span class="tag">推论</span></li>
+</ul>
+<h3>D. 加密指数（BTCDOM、ALL）</h3>
+<ul>
+<li>按名字推断，BTCDOM 反映比特币相对其他加密货币的强弱，可能更像做多或做空「山寨币相对 BTC」；我没查它的编制规则。<span class="tag">推论</span>24h 成交 $270 万，未平仓 $1,450 万。<span class="tag v">实测</span></li>
+</ul>
+<h3>E. bStocks 指数 ETF 现货：「24 小时的 ETF 影子」</h3>
+<ul>
+<li><b>适合</b>：想把指数 ETF 放进自己的钱包或 BNB Chain 的 DeFi。</li>
+<li><b>流动性</b>：QQQB 24h $243 万，SOXLB $421 万，KORUB $503 万，其他多在几十万美元以内。<span class="tag v">实测</span></li>
+<li>限制与风险同英伟达报告：不是股票或基金份额，赎回可能被延迟、拒绝，限定司法辖区，美国人不能买。<span class="tag g">转述</span></li>
+</ul>
+
+<h2 id="s5">实测：流动性与周末</h2>
+<h3>成交集中度</h3>
+<ul>
+<li>指数类永续 24h 总成交（主表 20 个合约加补充表里几个，合计约 $34.1 亿）中，SOXL 独占约 60%，加上 KORU、SOXS、QQQ、DRAM、EWY、SPY、TQQQ 这 8 个合约合计占约 99%。<span class="tag v">实测</span><span class="tag">推论</span></li>
+<li>IWM、SMH、EWJ、EWT、EWZ、KODEX200、TBT、GDX、XLE、XBI 每个 24h 成交都在 $10 万到 $80 万之间，买一卖一价差 2bp 到 20bp。这些合约<b>不适合下大单</b>。<span class="tag v">实测</span></li>
+</ul>
+<h3>周末（9/25 21:00 UTC 到 9/27 22:00 UTC）</h3>
+<div class="tw"><table><tr><th>合约</th><th>周末每小时成交 ÷ 平日</th><th>周末高低差</th><th>平日单日平均高低差</th><th>周五收盘到周日开盘跳空</th></tr><tr><td>QQQ</td><td>14%</td><td>0.72%</td><td>1.50%</td><td>+0.04%</td></tr><tr><td>SPY</td><td>20%</td><td>0.38%</td><td>0.91%</td><td>−0.07%</td></tr></table></div>
+<ul>
+<li>QQQ 周末成交量是平日的 14%，SPY 是 20%，价格几乎不动（高低差 0.4% 到 0.7%）。<span class="tag v">实测</span></li>
+<li>QQQ 过去 60 期资金费率里，周末（周六、周日）的所有时段都是 0。<span class="tag v">实测</span></li>
+<li>跳空接近 0：说明周末价格基本黏在周五收盘价附近，没有新信息的时候这样很正常。风险在<b>周一开盘</b>，周末累积的新闻会一次释放。<span class="tag">推论</span></li>
+</ul>
+
+<h2 id="s6">最容易踩的坑</h2>
+<div class="card warnbox"><ol>
+<li><b>以为有纳指、标普点位合约</b>：没有，只有 ETF。ETF 价格不等于指数点位。</li>
+<li><b>杠杆叠加</b>：杠杆 ETF 永续相当于 3×20＝60 倍的指数敞口。</li>
+<li><b>杠杆 ETF 的损耗</b>：每日重置，长期持有会被波动磨损。</li>
+<li><b>流动性断层</b>：只有 SOXL、KORU、SOXS、QQQ、DRAM、EWY、SPY、TQQQ 有量，其他合约一笔大单就把盘口吃穿。</li>
+<li><b>分红与除息</b>：ETF 除息日价格会下跌，永续是否给多头补偿我没查到。<span class="tag u">未证实</span></li>
+<li><b>美股休市时的定价规则不明</b>：只读到商品和外汇的规则。<span class="tag u">未证实</span></li>
+<li><b>国家 ETF 与实际市场时区不同步</b>。<span class="tag">推论</span></li>
+<li><b>现货代币不是 ETF 份额</b>：凭证、限定地区、赎回不保证。<span class="tag g">转述</span></li>
+<li><b>USDT 计价</b>：指数用 USDT/USD 换算，USDT 脱锚会传导。<span class="tag">推论</span></li>
+</ol></div>
+
+<h2 id="s7">我没查到、不要当已知的</h2>
+<ul>
+<li>ETF 永续在美股休市时的定价规则、对分红除息的处理。<span class="tag u">未证实</span></li>
+<li>各合约真实杠杆分档、维持保证金率。<span class="tag u">未证实</span></li>
+<li>币安 ETF 永续是否在 Nest Exchange Limited 等受监管主体之下。<span class="tag u">未证实</span></li>
+<li>QQQ、SPY 等 ETF 在币安股票期权里是否上市。<span class="tag u">未证实</span></li>
+<li>除 NVDAB 等首批外，其他 bStocks（含指数 ETF 代币）是否都在同一份招股书之下。<span class="tag u">未证实</span></li>
+<li>ALLUSDT 的具体成分。<span class="tag u">未证实</span></li>
+<li>币安研究报告里的统计口径。</li>
+</ul>
+
+<h2>来源</h2>
+<ul class="sub">
+<li>币安公开 API：<code>fapi.binance.com</code>（exchangeInfo、constituents、premiumIndex、fundingRate、depth、klines、ticker/24hr、openInterest）；<code>api.binance.com</code>（现货 exchangeInfo、ticker/24hr、depth）。快照 2026-10-02 约 15:10 UTC。</li>
+<li>ETF 永续上线：<a href="https://phemex.com/news/article/binance-futures-to-launch-perpetual-contracts-for-qqq-spy-aapl-and-tsm-70474">Phemex 新闻</a>、<a href="https://crypto.news/binance-launches-5-stock-perpetuals-with-20x-leverage/">Crypto.news</a>。</li>
+<li>ETF 永续规模：<a href="https://www.cryptotimes.io/2026/07/25/binance-etf-perpetual-volume-tops-116b-as-market-share-hits-74/">Crypto Times 对币安研究报告的整理</a>。</li>
+<li>bStocks：<a href="https://www.binance.com/en/academy/articles/what-are-bstocks-a-guide-to-tokenized-stocks-on-binance">币安学院</a>、<a href="https://www.binance.com/en/support/faq/detail/f0c03cd6509a4085b4cce1636f16be38">币安 FAQ</a>。</li>
+<li>币安股票交易：<a href="https://www.binance.com/en/support/faq/detail/a7469c7703524024b5bc2d492b03639d">币安 Stock Trading FAQ</a>。</li>
+</ul>
+<div class="sib sub">本系列：<a href="nvda-binance-report.html">英伟达（美股/bStocks）</a>　<a href="binance-commodities-report.html">大宗商品</a>　<a href="binance-fx-report.html">外汇</a>　<b>指数</b></div>
+</main>
+</body>
+</html>

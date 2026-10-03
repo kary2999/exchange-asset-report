@@ -1,0 +1,32 @@
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--line:#e4e3dd;--acc:#b8860b;--ok:#1a7f4b;--warn:#b45309;--bad:#b91c1c;--chip:#f1efe6}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--fg:#ecebe4;--mut:#9a9990;--card:#1d1d1a;--line:#333330;--acc:#e0b040;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--chip:#26261f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+main{max-width:940px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:28px;margin:8px 0}
+h2{font-size:22px;margin:48px 0 12px;padding-top:16px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{margin:6px 0}
+.sub{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.tldr{border-left:4px solid var(--acc)}
+.warnbox{border-left:4px solid var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0;background:var(--card)}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--chip);white-space:nowrap}
+.tw{overflow-x:auto}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:9px;background:var(--chip);margin-right:4px;white-space:nowrap}
+.v{color:var(--ok)} .g{color:var(--warn)} .u{color:var(--bad)}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0}
+.flow span.b{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow span.a{color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.k{font-size:24px;font-weight:600}
+nav{display:flex;flex-wrap:wrap;gap:4px 12px}
+nav a{font-size:14px;color:var(--acc)}
+.sib{border-top:1px solid var(--line);margin-top:40px;padding-top:12px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+details summary{cursor:pointer}
+.auto{margin:8px 0}
+
