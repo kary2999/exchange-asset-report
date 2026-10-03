@@ -13,6 +13,10 @@
   V_HANDNUM        FAIL  标了实测却含手敲数字（实测数字必须来自 {{...}} 占位）
   WEBONLY_V        FAIL  在 class="webonly"（仅网页转述区）里出现实测标签
   V_UNIVERSAL_NOVAL FAIL 标了实测、含全称/否定词，却没有 {{...}} 快照数字作证据
+  G_NOCITE         FAIL  转述句没有引用来源台账（{G:来源id|原文片段}）
+  G_GENERALIZE     WARN  转述句含「所有/全部/每个/都是」等泛化词：同时打印来源的覆盖范围，提醒核对是否外推
+  I_EXPLAIN        FAIL  推论里在解释原因（因为/所以/导致），却没有「猜测/没验证/可能」等限定
+  I_HANDNUM        WARN  推论句里有手敲数据数字，确认不是快照数据
   GU_MIX           WARN  同一句同时标转述和未证实（通常是两个事实混在一句，拆开）
   THIRDPARTY       WARN  提到第三方/教程/博客/论坛，却只标转述没标未证实
 """
@@ -32,6 +36,9 @@ NEG_RE = re.compile(r"(币安|交易所|全站|全球站|平台|官方)[^。；�
 SCOPE_RE = re.compile(r"接口|扫描|没查到|没找到|没有找到|未找到|未扫|没扫|范围|新闻稿|公告|只能说|没读到|没有读到")
 GLOBAL_RE = re.compile(r"全站|全球站|币安全站|整个币安|币安没有|币安不存在|币安不提供")
 INF_RE = re.compile(r"我(判断|推测|推断|认为|猜)|推测|推断|应该|通常|大概|可能|似乎|一般来说|估计|理解为|看起来|倾向")
+GEN_RE = re.compile(r"所有|全部|各品种|每个|均为|都是|整个|全站|任何|只有|仅有|唯一")
+EXPLAIN_RE = re.compile(r"因为|由于|所以|导致|原因是|解释[:：是]|我的解释")
+HEDGE_RE = re.compile(r"猜测|推断|没验证|未验证|可能|看起来|我的解释|倾向|估计|不确定")
 THIRD_RE = re.compile(r"第三方|教程|博客|论坛|二手|自媒体|搜索摘要")
 EXEMPT_SENT = re.compile(r"不是投资建议|不构成|本报告|以下为|见下表|见上表|见第\s?\d+\s?节|详见|如下")
 NUM_STRIP = re.compile(r"标普\s?500|S&P\s?500|纳指\s?100|纳斯达克\s?100|罗素\s?2000|KOSPI\s?200|Nasdaq-?100|MSCI|§CODE§|24/7|24/5|1:1|T\+1|\d{4}-\d{2}-\d{2}|\d{1,2}:\d{2}|第\s?\d+\s?(?:节|条|项)|[A-Za-z]+-\d+|\d+\.\d+\.\d+")
@@ -74,6 +81,10 @@ class Items(HTMLParser):
             t = next((TAGCHAR[c] for c in classes if c in TAGCHAR), "I")
             if self.cur:
                 self.cur[-1]["parts"].append("⟦%s⟧" % t)
+                ad = dict(attrs)
+                if ad.get("data-cite"):
+                    self.cur[-1]["parts"].append("⟦C⟧")
+                    self.cur[-1].setdefault("covers", []).append(ad.get("data-covers", ""))
             self.supp_stack.append(("span", True))
             self.suppress += 1
         elif tag == "span" and "val" in classes:
@@ -120,12 +131,12 @@ def split_sentences(parts):
     out = []
     for i, p in enumerate(pieces):
         if i > 0:
-            m = re.match(r"^((?:⟦[VGUI]⟧)+)", p)
+            m = re.match(r"^((?:⟦[VGUIC]⟧)+)", p)
             if m and out:
                 out[-1] += m.group(1)
                 p = p[len(m.group(1)):]
         out.append(p)
-    return [p for p in out if re.sub(r"⟦[VGUI]⟧|\s", "", p)]
+    return [p for p in out if re.sub(r"⟦[VGUIC]⟧|\s", "", p)]
 
 
 def analyze(html_text):
@@ -135,8 +146,8 @@ def analyze(html_text):
     issues, n_sent, n_claim, n_tagged = [], 0, 0, 0
     for it in p.items:
         for s in split_sentences(it["parts"]):
-            tags = set(re.findall(r"⟦([VGUI])⟧", s))
-            plain = re.sub(r"⟦[VGUI]⟧", "", s).strip()
+            tags = set(re.findall(r"⟦([VGUIC])⟧", s))
+            plain = re.sub(r"⟦[VGUIC]⟧", "", s).strip()
             if len(plain) < 6:
                 continue
             n_sent += 1
@@ -170,12 +181,21 @@ def analyze(html_text):
                     issues.append(("FAIL", "V_UNIVERSAL_NOVAL", show))
                 if it["web"]:
                     issues.append(("FAIL", "WEBONLY_V", show))
+            if "G" in tags and "C" not in tags:
+                issues.append(("FAIL", "G_NOCITE", show))
+            if "G" in tags and GEN_RE.search(plain):
+                issues.append(("WARN", "G_GENERALIZE", show + "  ｜来源覆盖范围：" + ("；".join(c for c in it.get("covers", []) if c) or "未记录")))
+            if "I" in tags and "V" not in tags and "G" not in tags:
+                if EXPLAIN_RE.search(plain) and not HEDGE_RE.search(plain):
+                    issues.append(("FAIL", "I_EXPLAIN", show))
+                if hand_num:
+                    issues.append(("WARN", "I_HANDNUM", show))
             if "G" in tags and "U" in tags:
                 issues.append(("WARN", "GU_MIX", show))
             if THIRD_RE.search(plain) and "G" in tags and "U" not in tags:
                 issues.append(("WARN", "THIRDPARTY", show))
     has_neg = any(r in ("NEG_SCOPE",) for _, r, _ in issues) or any(
-        NEG_RE.search(re.sub(r"⟦[VGUI]⟧", "", "".join(it["parts"]))) for it in p.items)
+        NEG_RE.search(re.sub(r"⟦[VGUIC]⟧", "", "".join(it["parts"]))) for it in p.items)
     return issues, {"sentences": n_sent, "claim_sentences": n_claim, "tagged_claims": n_tagged, "has_negative_claims": has_neg}
 
 

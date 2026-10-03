@@ -255,6 +255,9 @@ def build_survey(f, fapi_ex):
         "tradfi_total": len(tradfi), "tradfi_by_underlying_type": _count(tradfi, "underlyingType"),
         "tradfi_by_status": _count(tradfi, "status"), "tradfi_margin_assets": _count(tradfi, "marginAsset"),
         "settling_total": len(settling), "settling_by_contract_type": _count(settling, "contractType"),
+        "tradfi_symbols": {},
+        "schema": {"symbol_keys": sorted(tradfi[0].keys()) if tradfi else [],
+                   "filter_types": sorted({f_["filterType"] for x in tradfi[:20] for f_ in x.get("filters", [])}) if tradfi else []},
         "index_contracts": [{"symbol": x["symbol"], "status": x.get("status"), "contractType": x.get("contractType"),
                              "subtypes": x.get("underlyingSubType", [])} for x in syms if x.get("underlyingType") == "INDEX"],
         "delivery_contracts": [{"symbol": x["symbol"], "contractType": x["contractType"], "underlyingType": x.get("underlyingType")}
@@ -262,6 +265,10 @@ def build_survey(f, fapi_ex):
         "name_scan": [{"symbol": x["symbol"], "underlyingType": x.get("underlyingType")}
                       for x in syms if INDEX_NAME_PATTERN.search(x["symbol"])],
     }
+    for x in tradfi:
+        fapi["tradfi_symbols"].setdefault(x.get("underlyingType", "?"), []).append({
+            "symbol": x["symbol"], "subtypes": x.get("underlyingSubType", []),
+            "onboard": dt.datetime.fromtimestamp(x["onboardDate"] / 1000, UTC).strftime("%Y-%m-%d") if x.get("onboardDate") else ""})
     scope = [{"endpoint": FAPI + "exchangeInfo", "scanned": "U 本位合约（合约类型、标的类型、状态、保证金币种、名称扫描）", "count": len(syms)}]
     t24 = f.get(FAPI + "ticker/24hr", "bulk ticker 24h")
     if isinstance(t24, list):
@@ -394,7 +401,10 @@ def main():
     f = Fetcher()
     ex = check_connectivity(f)
     now = dt.datetime.now(UTC)
+    now_et = now.astimezone(ET)
     snap = {"meta": {"tool_version": VERSION, "fetched_at_utc": now.strftime("%Y-%m-%d %H:%M:%S"),
+                     "fetched_weekday_utc": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][now.weekday()],
+                     "fetched_at_et": now_et.strftime("%Y-%m-%d %H:%M") + " " + now_et.tzname(),
                      "category": a.category}}
 
     # 合约清单

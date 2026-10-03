@@ -11,14 +11,18 @@ description: |
   不触发：其他交易所（本 skill 只验证过币安）、纯加密币种分析、给投资建议。
 ---
 
-# exchange-asset-report（币安版 v0.2）
+# exchange-asset-report（币安版 v0.3）
 
 只覆盖币安。别的交易所的接口和指数字段不同，没验证过，不要声称通用。
 
 ## 硬性规则（`check_report.py` 会逐句强制其中大部分，违反即 FAIL）
 
 1. **不编造数字。** 数字只来自 snapshot。表格用 `<!--AUTO:xxx-->`，叙述里的数字用内联占位 `{{i:survey.fapi.total}}`、`{{v:BZUSDT.weight[hyperliquid]|pct}}`，**不要手敲**。接口拿不到的写"数据缺失"。
-2. **每个含数字、全称或否定词的句子必须带标签：** `{V}` 实测（来自快照）、`{G}` 转述（公告/新闻稿/媒体）、`{U}` 未证实、`{I}` 推论。解释现象、猜原因一律 `{I}`。第三方站（教程、博客）的内容只能 `{U}`。
+2. **每个含数字、全称或否定词的句子必须带标签：** `{V}` 实测（来自快照）、`{G}` 转述、`{U}` 未证实、`{I}` 推论。解释现象、猜原因一律 `{I}`，并写「我猜测/没验证/可能」。
+   - **`{G}` 必须引用来源台账并给原文片段：`{G:来源id|原文里的一句话或关键短语}`**，多个来源用 `+` 连接。生成时脚本会核对：来源存在、是脚本抓到的原文（status=ok）、片段真的在原文里。核对不过，报告不生成。
+   - **抓不到原文的来源（403、JS 渲染页、币安自己的 FAQ/学院页多是这样）只能写 `{U}`**，不能写 `{G}`。第三方站（教程、博客）的内容只能 `{U}`。
+   - 写「没查到」之前，先 `python3 scripts/ledger.py grep` 台账里已抓到的原文，确认真的没有。
+   - 来源只讲了某几个品种/某个日期的事，就只写那几个、那个日期。台账的 `covers` 字段写这个来源讲的范围；`{G}` 句含「所有/全部/只有」时验收会把 covers 打出来提醒你核对是否外推。
 3. **`{V}` 句的条件：** 不得含推测措辞（我判断/通常/可能…）；不得含手敲数字；含"没有/只有/全部/都是"时必须有 `{{...}}` 快照数字做证据。
 4. **「没有 X」只能写成「在 <扫描范围> 里没有找到 X」。** 范围取自 `<!--AUTO:scope-->`（实际扫过的接口与数量）；表里没列的地方（App 页面、公告、各地区站点、其他入口）一律算没扫。不得写"币安没有 X""全球站没有"。
 5. **标注时间。** 快照时间自动写在页首；美股时段用 ET，加密用 UTC。事实会过期，不要写死"币安只有 X 个"。
@@ -47,12 +51,19 @@ python3 scripts/binance_data.py --category equity --symbols NVDAUSDT --pairs NVD
 每个快照都带 `survey` 盘点：U 本位合约类型/状态/保证金币种/INDEX 合约清单/交割合约/SETTLING 计数/成交分桶，币本位合约，现货，币安期权标的，**以及扫描范围声明**。per-symbol：24h 成交/未平仓、价差、±0.1/0.5/1% 深度、指数成分与权重、资金费率统计、1 小时 K 线、周末与时段统计（仅 TRADIFI 永续）、现货对照价差。期权清单（commodity）、法币对（fx）、bStocks 候选（index）按类别取。
 取数完先看 `missing=`，不为 0 就读 `snapshot["missing"]`。取数是串行的，index 类别约 5 分钟。
 
-### 2 查资料（不确定性，网页）
-读币安公告/新闻稿、FAQ/学院、权威媒体，标 `{G}`。读不到原文（403/404/动态页）写 `{U}`，**不要用搜索摘要里没出处的句子**；搜索摘要常混入别家产品（例如把 Kraken xStocks 的托管信息安到 bStocks 上）。详见 `references/method.md`。
+### 2 查资料（不确定性，网页）+ 建来源台账
+1. 先找来源 URL（搜索只用来找 URL，**搜索摘要和 WebFetch 的摘要不是原文，不能当证据**；摘要常混入别家产品，例如把 Kraken xStocks 的托管信息安到 bStocks 上）。
+2. 逐个入台账，脚本直接抓原文并记录状态：
+```bash
+python3 scripts/ledger.py add --ledger sources.json --id pr_options --url URL --covers "这个来源讲的范围（品种/日期）"
+python3 scripts/ledger.py list --ledger sources.json          # 看哪些 ok，哪些 blocked/empty/error
+python3 scripts/ledger.py grep --ledger sources.json --id pr_options --q "Alpaca"   # 查原文里有没有、上下文
+```
+3. status=ok 的来源才能支撑 `{G}`；其余只能支撑 `{U}`。详见 `references/method.md`。
 
 ### 3 写 narrative
 复制 `references/narrative-template.html`，按 `GUIDE` 注释写。可用占位：
-- 表格：`meta`、`scope`、`survey`、`volume`、`inventory`、`contracts`、`constituents[:SYM+SYM]`、`funding`、`weekend`、`sessions`、`basis`、`options`、`fiatpairs`、`bstocks`、`missing`
+- 表格：`meta`、`scope`、`survey`、`volume`、`tradfilist[:类型+类型]`、`sources`（引用的来源清单）、`inventory`、`contracts`、`constituents[:SYM+SYM]`、`funding`、`weekend`、`sessions`、`basis`、`options`、`fiatpairs`、`bstocks`、`missing`
 - 内联取数：`{{i:路径|格式}}`（盘点，路径以 `survey.`/`inventory.` 开头）、`{{v:合约.字段|格式}}`（合约字段，权重用 `weight[来源名]`）、`{{s:现货对.字段|格式}}`（现货对照，如 `{{s:PAXGUSDT.basis_7d.weekend_mean_bp|bp}}`）；格式：`usd` `pct` `pctn` `bp` `int` `f1` `f2` `len`
 
 ### 4 生成
@@ -65,8 +76,8 @@ python3 scripts/build_report.py --snapshot snap_survey.json --snapshot snap_com.
 ```bash
 python3 scripts/check_report.py report.html --snapshot snap_survey.json --snapshot snap_com.json --narrative narrative.html --live
 ```
-检查：标签平衡、占位符、必备章节与范围声明、断言级规则（见 `scripts/claims.py`）、快照与叙述稿哈希、繁体混入、`--live` 重抓指数成分结构。FAIL 必须清零；WARN 逐条看。
-**机检过 ≠ 内容对。** 回归夹具里 18 处真实错误，机检直接判 FAIL 13 处、提醒 2 处，其余 3 处靠独立验收员或源头改进。
+检查：标签平衡、占位符、必备章节与范围声明、断言级规则（见 `scripts/claims.py`：含 G_NOCITE、I_EXPLAIN 等）、快照与叙述稿哈希、繁体混入、`--live` 重抓指数成分结构。FAIL 必须清零；WARN 逐条看。
+**机检过 ≠ 内容对。** 回归夹具里 18 处真实错误，机检直接判 FAIL 16 处、提醒 1 处，剩 1 处（标了推论的绝对化措辞）要靠独立验收员。但「引用的片段在原文里」只证明这句话出现过，不证明它的意思被正确使用，语义层仍需独立验收。
 
 ### 6 独立验收
 起一个独立子代理，提示词见 `references/verifier-prompt.md`。验收员**只改 narrative**，再重建、再跑 check。这一步在两次实战里都抓出过机检抓不到的问题，不能省。
@@ -76,7 +87,7 @@ python3 scripts/check_report.py report.html --snapshot snap_survey.json --snapsh
 
 ## 目录
 
-- `scripts/binance_data.py` 取数；`build_report.py` 生成；`check_report.py` 验收；`claims.py` 断言级分析
+- `scripts/binance_data.py` 取数；`ledger.py` 来源台账；`build_report.py` 生成；`check_report.py` 验收；`claims.py` 断言级分析
 - `config/index_watchlist.json` 指数类合约观察清单（代号识别，非官方）
 - `references/` 方法、接口、坑、验收提示词、叙述模板
 - `examples/` 四份第一版的手工报告（数字已过期，且不符合 v0.2 的写作规则）

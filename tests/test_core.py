@@ -121,6 +121,94 @@ class TestRetry(unittest.TestCase):
             urllib.request.urlopen, bd.time.sleep = orig, osleep
 
 
+class TestLedger(unittest.TestCase):
+    FX = os.path.join(os.path.dirname(__file__), "fixtures")
+
+    def test_verify_cite(self):
+        import ledger
+        led = ledger.load(os.path.join(self.FX, "sources.json"))
+        lp = os.path.join(self.FX, "sources.json")
+        ok, _ = ledger.verify_cite(led, lp, "pr_gold_silver", "offered by  NEST exchange limited", "G")   # 大小写/空白不敏感
+        self.assertTrue(ok)
+        ok, why = ledger.verify_cite(led, lp, "pr_gold_silver", "Alpaca Securities", "G")
+        self.assertFalse(ok)
+        self.assertIn("找不到片段", why)
+        ok, why = ledger.verify_cite(led, lp, "theblock", "anything", "G")
+        self.assertFalse(ok)
+        self.assertIn("只能写 {U}", why)
+        ok, _ = ledger.verify_cite(led, lp, "theblock", "", "U")        # 抓不到原文的来源允许 {U}
+        self.assertTrue(ok)
+        ok, why = ledger.verify_cite(led, lp, "nope", "x", "U")
+        self.assertFalse(ok)
+        ok, why = ledger.verify_cite(led, lp, "pr_gold_silver", "", "G")  # 转述必须给片段
+        self.assertFalse(ok)
+
+    def test_add_source_status(self):
+        import ledger
+        import tempfile
+        d = tempfile.mkdtemp()
+        lp = os.path.join(d, "s.json")
+        page = "<html><body><p>" + ("正文 text " * 200) + "</p><script>var x=1</script></body></html>"
+        e = ledger.add_source(lp, "ok1", "https://x/a", fetcher=lambda u: (200, "text/html", page.encode(), ""))
+        self.assertEqual(e["status"], "ok")
+        self.assertNotIn("var x", ledger.get_text(lp, "ok1"))
+        e = ledger.add_source(lp, "b1", "https://x/b", fetcher=lambda u: (403, "text/html", b"denied", "HTTP 403"))
+        self.assertEqual(e["status"], "blocked")
+        e = ledger.add_source(lp, "e1", "https://x/c", fetcher=lambda u: (200, "text/html", b"<html><body>loading</body></html>", ""))
+        self.assertEqual(e["status"], "empty")
+        e = ledger.add_source(lp, "c1", "https://x/d", fetcher=lambda u: (200, "text/html", b"<html><body>Just a moment... Cloudflare</body></html>", ""))
+        self.assertEqual(e["status"], "blocked")
+        e = ledger.add_source(lp, "n1", "https://x/e", fetcher=lambda u: (0, "", b"", "timeout"))
+        self.assertEqual(e["status"], "error")
+        with self.assertRaises(ValueError):
+            ledger.add_source(lp, "bad id!", "https://x/f", fetcher=lambda u: (200, "", b"", ""))
+
+    def _build(self, narr_text):
+        import tempfile
+        d = tempfile.mkdtemp()
+        n = os.path.join(d, "n.html")
+        open(n, "w", encoding="utf-8").write(narr_text)
+        import shutil
+        shutil.copy(os.path.join(self.FX, "sources.json"), os.path.join(d, "sources.json"))
+        shutil.copytree(os.path.join(self.FX, "sources"), os.path.join(d, "sources"))
+        out = os.path.join(d, "o.html")
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "build_report.py"), "--snapshot",
+                            os.path.join(self.FX, "mini_snapshot.json"), "--narrative", n, "--title", "t", "--out", out],
+                           capture_output=True, text=True)
+        return r, out
+
+    def test_build_rejects_bad_citations(self):
+        r, out = self._build("<h2 id='s0'>x</h2><ul><li>新闻稿写了某事。{G:pr_gold_silver|这句话原文里没有}</li>"
+                             "<li>被拦来源的转述。{G:theblock|abc}</li><li>未知来源。{U:ghost}</li></ul>")
+        self.assertEqual(r.returncode, 1)
+        self.assertFalse(os.path.exists(out))
+        self.assertIn("找不到片段", r.stderr)
+        self.assertIn("只能写 {U}", r.stderr)
+        self.assertIn("不在台账里", r.stderr)
+
+    def test_build_renders_citation_and_sources_table(self):
+        r, out = self._build("<h2 id='s0'>x</h2><ul><li>黄金白银永续由 Nest Exchange Limited 提供。{G:pr_gold_silver|Nest Exchange Limited}</li></ul><!--AUTO:sources-->")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        h = open(out, encoding="utf-8").read()
+        self.assertIn('href="#src-pr_gold_silver"', h)
+        self.assertIn('id="src-pr_gold_silver"', h)
+        self.assertIn("黄金白银永续首发", h)       # covers
+        self.assertIn('name="sources-sha256"', h)
+
+    def test_rules_g_nocite_generalize_explain(self):
+        import claims
+        html = ('<ul><li>币安股票永续都是 20 倍杠杆。<span class="tag g">转述</span></li>'
+                '<li>币安股票永续都是 20 倍杠杆。<span class="tag g" data-cite="a|b" data-covers="只讲了 5 个合约">转述</span><span class="tag g" data-cite="a|b" data-covers="只讲了 5 个合约"></span></li>'
+                '<li>周末成交偏低，因为周六休市。<span class="tag">推论</span></li>'
+                '<li>周末成交偏低，可能因为周六休市，没验证。<span class="tag">推论</span></li></ul>')
+        iss, _ = claims.analyze(html)
+        rules = [(l, r) for l, r, _ in iss]
+        self.assertIn(("FAIL", "G_NOCITE"), rules)
+        self.assertIn(("WARN", "G_GENERALIZE"), rules)
+        self.assertTrue(any("只讲了 5 个合约" in s for l, r, s in iss if r == "G_GENERALIZE"))
+        self.assertEqual(sum(1 for l, r in rules if r == "I_EXPLAIN"), 1)   # 只有无限定的那句
+
+
 class TestBasis(unittest.TestCase):
     def test_basis(self):
         spot = [{"t": 1, "c": 101.0}, {"t": 2, "c": 99.0}]
@@ -317,15 +405,14 @@ class TestRegressionTradfi(unittest.TestCase):
         none = sorted(n for n, v in res.items() if v == "NONE")
         # 18 处真实错误（1~18；19 是验收员新增的补充说明，不是错误）里，规则能直接判 FAIL 的 13 处：
         # 无标签的数字/全称、全称否定缺范围、实测句里的手敲数字、实测+全称无快照数字证据
-        self.assertEqual(fail, [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 18])
-        # 只能提醒：15 把一个主体的事实外推到所有品种（无标签的句子）；16 把第三方数字同时标了转述和未证实
-        self.assertEqual(warn, [15, 16])
+        # v0.2.1 起转述句必须引用来源台账：7（没出处的「不是币安自己做市」标成转述）、15（跨主体外推标成转述）、
+        # 16（第三方数字标成转述）也因 G_NOCITE 被拦
+        self.assertEqual(fail, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18])
+        self.assertEqual(warn, [17])     # 17：推论句里手敲了数据数字（I_HANDNUM 提醒）；真正的缺陷（INDEX 合约少列）由 survey 源头补齐
         # 机检的边界，必须靠独立验收员做语义审查，或靠源头改进：
-        #   7  把没出处的「不是币安自己做市」标成了转述（标签与证据不符，只有读来源才知道）
-        #   14 标了「推论」的绝对化措辞
-        #   17 INDEX 合约写了 2 个实际 3 个：数据不全，已由 survey.fapi.index_contracts 在源头补齐
+        #   14 标了「推论」的绝对化措辞（机检不判，由独立验收员审）
         #   19 验收员新增的补充说明，本身不是错误
-        self.assertEqual(none, [7, 14, 17, 19])
+        self.assertEqual(none, [14, 19])
 
     def test_compliant_rewrite_passes(self):
         py = sys.executable

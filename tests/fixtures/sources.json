@@ -1,0 +1,28 @@
+{
+ "sources": {
+  "pr_gold_silver": {
+   "url": "https://example.invalid/pr",
+   "title": "测试来源（黄金白银公告）",
+   "covers": "黄金白银永续首发",
+   "status": "ok",
+   "http_code": 200,
+   "origin": "raw",
+   "text_chars": 1200,
+   "raw_sha256": "x",
+   "fetched_at_utc": "2026-01-01 00:00:00",
+   "error": ""
+  },
+  "theblock": {
+   "url": "https://example.invalid/blocked",
+   "title": "被拦的来源",
+   "covers": "某媒体",
+   "status": "blocked",
+   "http_code": 403,
+   "origin": "raw",
+   "text_chars": 0,
+   "raw_sha256": "",
+   "fetched_at_utc": "2026-01-01 00:00:00",
+   "error": "HTTP 403"
+  }
+ }
+}
