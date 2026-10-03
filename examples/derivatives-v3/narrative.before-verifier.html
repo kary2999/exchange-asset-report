@@ -1,0 +1,160 @@
+<h1>币安衍生品业务调研：股票 / 代币化股票 / CFD / 指数 / ETF / 期货，以及小交易所依托币安的条件</h1>
+<!--AUTO:meta-->
+@@NAV@@
+
+<h2 id="coverage">范围声明</h2>
+<div class="card"><p>本报告分两类内容。本报告里有脚本数据的部分：币安公开接口里的合约盘点、成交、深度、指数成分、资金费率、周末与盘后统计、现货对照，这些数字由脚本取数并自动填入。本报告里只是网页转述的部分：CFD、发行与监管主体、小交易所依托币安的准入条件，放在标注「仅网页转述」的虚线框里，那里不出现实测标签。本报告的转述句都引用了来源台账里脚本抓到的原文片段；抓不到原文的来源（币安自己的 FAQ、学院页和部分媒体）只支撑「未证实」。扫描范围见下方「扫描范围表」，表外的地方本报告不下结论。</p></div>
+
+<h2 id="s0">先看结论</h2>
+<div class="card tldr"><ul>
+<li>币安 U 本位合约接口里共有 {{i:survey.fapi.total}} 个合约，其中 TradFi 永续 {{i:survey.fapi.tradfi_total}} 个、加密永续 {{i:survey.fapi.by_contract_type.PERPETUAL}} 个、季度交割合约 {{i:survey.fapi.delivery_contracts|len}} 个。{V}</li>
+<li>TradFi 永续按标的类型：股票和 ETF 类 {{i:survey.fapi.tradfi_by_underlying_type.EQUITY}} 个，港股 {{i:survey.fapi.tradfi_by_underlying_type.HK_EQUITY}} 个，韩股 {{i:survey.fapi.tradfi_by_underlying_type.KR_EQUITY}} 个，大宗商品 {{i:survey.fapi.tradfi_by_underlying_type.COMMODITY}} 个，预上市 {{i:survey.fapi.tradfi_by_underlying_type.PREMARKET}} 个，A 股相关 {{i:survey.fapi.tradfi_by_underlying_type.CN_EQUITY}} 个，外汇 {{i:survey.fapi.tradfi_by_underlying_type.FX}} 个。{V}</li>
+<li>保证金币种：USDT {{i:survey.fapi.tradfi_margin_assets.USDT}} 个，USD1 {{i:survey.fapi.tradfi_margin_assets.USD1}} 个。{V}</li>
+<li>成交额前三是 {{i:survey.fapi.tradfi_volume_24h.top10.0.symbol}}（{{i:survey.fapi.tradfi_volume_24h.top10.0.usd|usd}}）、{{i:survey.fapi.tradfi_volume_24h.top10.1.symbol}}（{{i:survey.fapi.tradfi_volume_24h.top10.1.usd|usd}}）、{{i:survey.fapi.tradfi_volume_24h.top10.2.symbol}}（{{i:survey.fapi.tradfi_volume_24h.top10.2.usd|usd}}）。{V}24h 成交额不到百万美元的合约有 {{i:survey.fapi.tradfi_volume_24h.below_1m_n}} 个，总共 {{i:survey.fapi.tradfi_volume_24h.n}} 个。{V}别拿合约总数当成能做的市场数。{I}</li>
+<li>在 U 本位 {{i:survey.fapi.total}} 个合约、币本位 {{i:survey.dapi.total}} 个合约和现货 {{i:survey.spot.trading_symbols}} 个交易对的名称里，没有找到名称像标普 500、纳指、道指的指数合约；名称扫描命中的 {{i:survey.fapi.name_scan.0.symbol}} 标的类型是 {{i:survey.fapi.name_scan.0.underlyingType}}，不是股指。{V}标的类型为 INDEX 的合约有 {{i:survey.fapi.index_contracts|len}} 个，都是加密指数。{V}扫描范围见下方「扫描范围表」，表外的入口没扫，所以不能推到币安全站没有。{I}</li>
+<li>美股指数的敞口，在本次扫描的合约接口里只看到用 SPY、QQQ、IWM 这类 ETF 的永续来替代，价格是 ETF 的价格，不是指数点位。{I}</li>
+<li>在 U 本位和币本位合约接口里没有找到 CFD 类型的合约：U 本位合约类型是 {{i:survey.fapi.by_contract_type.PERPETUAL}} 个永续、{{i:survey.fapi.by_contract_type.TRADIFI_PERPETUAL}} 个 TradFi 永续、{{i:survey.fapi.by_contract_type.CURRENT_QUARTER}} 个当季、{{i:survey.fapi.by_contract_type.NEXT_QUARTER}} 个次季。{V}这只说明合约接口里没有，不能证明各地区站点没有 CFD 业务。{I}</li>
+<li>U 本位的季度交割合约有 {{i:survey.fapi.delivery_contracts|len}} 个，币本位 {{i:survey.dapi.total}} 个合约里标的类型是 COIN 的有 {{i:survey.dapi.by_underlying_type.COIN}} 个，在这两个接口里没有找到股票或指数的交割期货。{V}</li>
+<li>币安自己盘口在指数里的权重：黄金 {{v:XAUUSDT.weight[binance]|pct}}，外汇 USDBRL {{v:USDBRLUSDT.weight[binance]|pct}}，布伦特原油 {{v:BZUSDT.weight[binance]|pct}}。{V}单一来源依赖最高的两个是铜（RedStone {{v:COPPERUSDT.weight[redstone]|pct}}）和布伦特原油（Hyperliquid {{v:BZUSDT.weight[hyperliquid]|pct}}）。{V}</li>
+<li>小交易所依托币安做这些业务：本次读到原文的资料里，币安对外的机构接入产品是 Crypto-as-a-Service 白标，早期接入只面向「持牌并达到规模要求」的机构。{G:pr_caas|participation in the early access phase is reserved for established, licensed banks, brokerages, and exchanges that meet the scale requirements for caas}这份新闻稿没提 TradFi 产品是否覆盖。{U:pr_caas}要自己对客户提供 TradFi 衍生品，核心门槛看起来是自己的牌照、风控和对冲资金，币安接口不解决这些。{I}详见第 7 节（仅网页转述）。</li>
+<li>以上是调研，不是投资建议，也不是法律意见。</li>
+</ul></div>
+<!--AUTO:scope-->
+
+<h2 id="s1">有哪些产品，一张表看懂</h2>
+<!--AUTO:survey-->
+<!--AUTO:tradfilist:PREMARKET+CN_EQUITY+FX-->
+<!--AUTO:volume-->
+<!--AUTO:contracts-->
+<!--AUTO:options-->
+<!--AUTO:bstocks-->
+<!--AUTO:fiatpairs-->
+<p class="sub">合约表只包含本次取数的合约：全部大宗商品、外汇、美股 NVDA，以及指数类观察清单里的 ETF 和加密指数。观察清单按代号识别，不是官方分类。</p>
+<div class="webonly">
+<p class="sub"><b>相关但不在合约接口里的产品（仅网页转述）</b></p>
+<ul>
+<li>股票现货：币安称可交易 7,000 多只美股和 ETF。{G:pr_bstocks_preview|more than 7,000 u.s.-listed stocks and etfs}通过 Nest Trading Limited 提供。{G:pr_bstocks_preview|enabled through binances adgm broker-dealer, nest trading limited}</li>
+<li>bStocks（代币化股票）：BTech Holdings Limited 发行，币安称这是由真实股票全额支持的代币化证券。{G:pr_bstocks_launch2|fully-backed tokenized securities representing select u.s. stocks issued by btech holdings limited, a binance group affiliate}首批上市的是 CRCL、MU、NVDA、SNDK、TSLA 五只。{G:pr_bstocks_launch2|the first bstocks listings will be circle internet group (crclb/usdt), micron technology (mub/usdt), nvidia (nvdab/usdt), sandisk (sndkb/usdt), and tesla (tslab/usdt)}</li>
+<li>美股期权：币安称对 1,000 多只美股和 ETF 开放期权，用户行权时收到或交付标的股票。{G:cryptoslate_options|binance is putting options on more than 1,000 selected us stocks and exchange-traded funds}{G:pr_options|upon exercise, users receive or deliver the underlying shares}零售用户可以买看涨看跌，最大亏损是权利金。{G:pr_options|retail users eligible for options trading will be able to buy calls and puts, where maximum potential loss is limited to the premium paid}</li>
+<li>CFD：媒体 2022 年 7 月报道，币安澳洲向批发客户提供加密 CFD，持 AFS 牌照。{G:fm_cfd|the otc derivatives are being offered under an afs license}报道在 2022 年，现在是否仍在提供没核实。{U:fm_cfd}</li>
+</ul>
+</div>
+
+<h2 id="s2">价格是怎么来的（重点）</h2>
+<ul>
+<li>指数价：接口 constituents 给出每个合约的成分来源和权重，见下表；币安自己盘口权重都不大，大头多是数据商（dxFeed、Kaiko、Pyth Pro、Massive 等），铜和布伦特原油是例外。{V}</li>
+<li>成分代号里带 <code>//uindex(USDTUSD)</code>，我推断是把美元报价乘以 USDT/USD 汇率换成 USDT 计价，所以 USDT 脱锚可能传导到指数，没验证。{I}</li>
+<li>代号带 <code>xyz:</code> 前缀的来源（如 <code>xyz:GOLD</code>），我推断是 Hyperliquid 上第三方部署的市场，也就是另一家永续的价格，不是传统交易所报价，没验证。{I}</li>
+<li>单一来源依赖：铜的 RedStone 权重 {{v:COPPERUSDT.weight[redstone]|pct}}，布伦特原油的 Hyperliquid 权重 {{v:BZUSDT.weight[hyperliquid]|pct}}。{V}这两个品种的指数价质量取决于一个来源，标记价是否同样受影响要看公式，本次没读到公式。{I}</li>
+<li>商品类合约的休市定价：周五 17:00 到周日 18:00（ET）切换到订单簿 EWMA 模式。{G:techflow_hours|weekends and public holidays (friday 17:00 to sunday 18:00, et): order book ewma mode}外汇合约的窗口是周五 17:00 到周日 17:00（ET）。{G:pr_fx|during weekends and public holidays - friday 17:00 (et) to sunday 17:00 (et)}股票和 ETF 永续的休市定价规则本次没读到原文。{U}</li>
+<li>标记价公式本次没有读到币安公告原文，不写具体机制。{U}</li>
+<li>bStocks 的价格是订单簿供需决定的说法来自币安 FAQ，但这个页面脚本抓不到原文（挑战页），所以只算未证实。{U:bn_faq_bstocks}</li>
+<li>exchangeInfo 里 <code>marketTakeBound</code> 是合约的顶层字段，<code>PERCENT_PRICE</code> 才是 filter 类型，这是对照 schema 看到的；两者具体含义我按字段名理解，没读文档确认。{U}</li>
+</ul>
+<!--AUTO:constituents:XAUUSDT+CLUSDT+COPPERUSDT+BZUSDT+QQQUSDT+NVDAUSDT+USDBRLUSDT-->
+
+<h2 id="s3">谁生产的（发行与产品链）</h2>
+<p>TradFi 永续的结构（脚本数据加判断）：</p>
+<div class="flow"><span class="b">外部数据商 + 币安盘口</span><span class="a">→ 加权</span><span class="b">指数价</span><span class="a">→</span><span class="b">标记价 + 币安撮合引擎</span><span class="a">→</span><span class="b">USDT（或 USD1）保证金仓位，无实物</span></div>
+<ul>
+<li>合约类型字段是 TRADIFI_PERPETUAL，保证金币种见上方结论里的计数。{V}</li>
+<li>接口没写发行主体，所以「币安自己发行」和「没有实物」是我的判断。{I}</li>
+</ul>
+<div class="webonly">
+<p class="sub"><b>发行、托管与监管（仅网页转述）</b></p>
+<ul>
+<li>黄金白银永续的新闻稿写：TradFi 永续由 Nest Exchange Limited 提供，这是受 ADGM 的 FSRA 监管的币安实体。{G:pr_gold_silver|tradfi perpetual contracts are offered by nest exchange limited, a binance entity regulated by the financial services regulatory authority (fsra) of adgm as a recognized investment exchange}其他品种的提供主体本次没查到。{U}</li>
+<li>美股期权：Nest Trading Limited 做介绍经纪，订单路由给 Alpaca 执行、清算、结算和托管。{G:pr_options|nest trading limited acts as introducing broker, routing orders to alpaca securities llc}</li>
+<li>bStocks：BNB Chain 材料称 bStocks 是真实股份的数字表示，由受监管托管方持有，并有每日抵押品证明。{G:bnbchain_blog|every token is a digital representation of a real-world share, held by a regulated custodian}{G:bnbchain_blog|convert 1:1 with no fees and trade 24/7 with daily proof of collateral}托管方的具体名称、做市商，两份材料都没写。{U}搜索摘要里出现过其他托管方名称和对账频率的说法，来自二手摘要且常混入别家产品，不采信。{U}</li>
+<li>股票永续的杠杆与结算：某一批 5 个合约的报道写最高 20 倍、每 8 小时结算资金费。{G:cryptonews_5perps|contracts offer up to 20x leverage, round-the-clock trading and eight-hour funding settlements}另一批 7 个合约的报道同样写 20 倍。{G:cryptobriefing_perps|usdt-margined stock contracts offering 20x leverage around the clock}这些报道只覆盖了各自那一批合约，其他股票永续的杠杆本次没查到，以 App 为准。{U}</li>
+<li>股票永续不带股权：报道写这些合约参考股票价格，但不授予股票所有权。{G:cryptonews_5perps|without granting stock ownership rights}</li>
+</ul>
+</div>
+
+<h2 id="s4">玩法与特性（白话）</h2>
+<ul>
+<li><b>周末与事件交易</b>：永续 24/7，周末也能下单。代价是周末盘口薄、价格没有正股参照，见第 5 节。{I}</li>
+<li><b>黄金、原油对冲</b>：永续加 USDT 保证金，不用换汇；要看资金费，见下表。{I}</li>
+<li><b>杠杆 ETF 叠加永续杠杆</b>：TQQQ、SOXL 这类标的本身已经是杠杆产品，再叠加合约杠杆，实际暴露是乘积。{I}</li>
+<li><b>做空股票</b>：永续可以直接做空；现货 bStocks 本次没查到做空途径。{U}</li>
+<li><b>有限亏损</b>：期权买方的最大亏损是权利金。{G:pr_options|maximum potential loss is limited to the premium paid}永续会被强平，这是永续的一般机制，不是某个来源的说法。{I}</li>
+<li><b>现货与永续套利</b>：先看价差能不能盖住手续费，见第 5 节价差表。{I}</li>
+</ul>
+<!--AUTO:funding:XAUUSDT+CLUSDT+NVDAUSDT+QQQUSDT+USDBRLUSDT-->
+
+<h2 id="s5">实测：周末、盘中盘后、现货与永续</h2>
+<p>取数的星期和美东时间见页首。24h 统计是取数前滚动一整天的数据，不是日历日，所以取数在周末时窗口仍包含周五的交易。{I}</p>
+<!--AUTO:weekend-->
+<!--AUTO:sessions:NVDAUSDT+QQQUSDT-->
+<!--AUTO:basis-->
+<ul>
+<li>观察：黄金永续在最近 {{v:XAUUSDT.funding.n}} 期资金费率里有 {{v:XAUUSDT.funding.zero_n}} 期为 0，其中周末 {{v:XAUUSDT.funding.weekend_zero_n}} 期。{V}这可能是周末溢价接近 0，我的猜测，没验证。{I}</li>
+<li>观察：黄金永续上一个周末窗口的成交量是平日的 {{v:XAUUSDT.weekend.vol_ratio_pct|pctn}}，高低差 {{v:XAUUSDT.weekend.weekend_range_pct|pctn}}，而平日单日平均高低差是 {{v:XAUUSDT.weekend.weekday_avg_daily_range_pct|pctn}}。{V}</li>
+<li>观察：原油（CL）周末高低差 {{v:CLUSDT.weekend.weekend_range_pct|pctn}}，平日单日平均 {{v:CLUSDT.weekend.weekday_avg_daily_range_pct|pctn}}，周末不冻结。{V}只测了这一个品种，不能推到别的商品，我的提醒。{I}</li>
+<li>观察：PAXG 对黄金永续的周末平均价差是 {{s:PAXGUSDT.basis_7d.weekend_mean_bp|bp}}，近一周平均 {{s:PAXGUSDT.basis_7d.mean_bp|bp}}。{V}这可能是周末现货流动性变差，我的猜测，没验证，且只测了这一对。{I}</li>
+<li>观察：NVDAB 对永续的近一周平均价差是 {{s:NVDABUSDT.basis_7d.mean_bp|bp}}。{V}没和手续费比较之前，不能称为套利机会。{I}</li>
+<li>观察：原油的新闻写资金费每 8 小时结算，{G:bitcoincom_oil|funding fees processed every eight hours}而接口当前给出的结算周期是 {{v:CLUSDT.funding_info.interval_hours}} 小时。{V}两边的时间点不同，新闻发布在合约上线前后，周期可能后来改过，这是我的猜测，没验证。{I}</li>
+<li>样本：资金费率记录条数在 USDBRL 上只有 {{v:USDBRLUSDT.funding.n}} 期，其他品种多为取数上限，单次快照，不给统计显著性结论。{V}</li>
+</ul>
+
+<h2 id="s6">最容易踩的坑</h2>
+<div class="card warnbox"><ol>
+<li>合约总数不等于市场数：尾部合约成交额不到百万美元，深度只有几万美元，滑点可能很大，成交分桶见上方盘点表。{I}</li>
+<li>「指数」不等于标普或纳指：INDEX 类合约是加密指数；美股指数敞口靠 SPY、QQQ 永续，这是 ETF 价格，不是指数点位。{I}</li>
+<li>单一来源依赖：铜和布伦特原油的指数价几乎由一个来源决定；该来源异常时，指数价会偏，标记价是否一起偏要看公式，本次没读到公式。{I}</li>
+<li>新闻和接口对不上的地方（例如原油的资金费周期）以接口为准，但接口只反映当下。{I}</li>
+<li>周末与休市没有正股价格参照，周一开盘可能出现和周末价差很大的跳空。{I}</li>
+<li>期权是实物交割，行权要在到期前提交，否则可能被平仓或作废。{G:cryptoslate_options|users must submit exercise instructions before expiry, or positions may be liquidated or expire worthless despite being in the money}</li>
+<li>SETTLING 状态的 {{i:survey.fapi.settling_total}} 个合约在 U 本位里全是加密永续，TradFi 永续全是 TRADING。{V}</li>
+</ol></div>
+
+<h2 id="s7">仅网页转述：小体量交易所依托币安做这些业务，要满足什么条件</h2>
+<div class="webonly">
+<p>先说明：我读到原文的币安公开资料里，没有找到面向外部的 TradFi 业务准入清单。{U}下面分三层：有原文的、没公开要和币安商务谈的、我的推论。不构成法律意见。{I}</p>
+<h3>7.1 币安公开的接入路径（只写读到原文的）</h3>
+<ul>
+<li><b>Crypto-as-a-Service（白标）</b>：2025 年 9 月 30 日开放早期接入。{G:pr_caas|binance will open early access to crypto-as-a-service on september 30, 2025}早期接入只面向持牌并达到规模要求的银行、券商和交易所。{G:pr_caas|participation in the early access phase is reserved for established, licensed banks, brokerages, and exchanges that meet the scale requirements for caas}规模要求的具体数字、费用和分成没有公开，新闻稿也没提是否覆盖股票或外汇等 TradFi 产品。{U:pr_caas}</li>
+<li><b>Binance Link 经纪商接口</b>：文档里有创建子账户和查询经纪商返佣记录的接口。{G:link_docs|create a sub account}{G:link_docs|query broker commission rebate recent record}返佣比例、申请门槛、是否计入 TradFi 永续，这份文档没写，也没有读到其他原文。{U:link_docs}</li>
+<li><b>早期 Broker Partner 计划</b>：第三方教程站写过用户数、月成交量和锁定 BNB 的门槛数字，但那些页面脚本抓不到原文，也不是币安官方口径，不要当门槛用，必须向币安商务确认。{U}</li>
+</ul>
+<h3>7.2 按想做的业务，对应的条件</h3>
+<ul>
+<li><b>给客户提供 TradFi 永续</b>：自己做对手方需要衍生品牌照、资本金、保证金与强平引擎、对冲账户额度与 API 限速、全天候风控值班；只导流则走 Link 返佣吃返佣。{I}币安对冲时你面对的是币安的深度，见第 1 节成交分桶，头部几个品种能承接大单，尾部品种看起来不能当对冲腿。{I}</li>
+<li><b>卖股票代币</b>：代币化证券在多数地区受证券法约束，零售发售通常需要牌照。{I}上架第三方 bStocks 要看发行方条款与可用地区，本次没读到。{U}bStocks 现货与对应永续的深度对比见第 5 节价差表，不要凭印象判断谁更厚。{I}</li>
+<li><b>CFD</b>：我在币安合约接口里没找到可对接的 CFD，通常是自己做 CFD 发行再用币安永续去对冲，这是我的推断。{I}CFD 发行本身是强监管业务，各地区差异大。{I}</li>
+<li><b>指数类产品</b>：币安合约接口里没找到股票指数合约；自建指数需要自己的指数规则与数据授权，数据商再分发的授权不是币安能转授的，这是我的判断。{I}可以用 SPY、QQQ 永续当替代，或用数据商价格自己合成。{I}</li>
+<li><b>期货（交割）与其他衍生品</b>：币安 U 本位只有加密币的季度合约，股票和指数交割期货在 fapi、dapi 里没找到；要做就得自己做合约规则、结算价与到期交割，币安只能提供加密币的对冲腿。{I}</li>
+<li><b>美股现货与期权</b>：币安自己是通过 Nest Trading 加 Alpaca 做的，{G:pr_options|nest trading limited acts as introducing broker, routing orders to alpaca securities llc}期权面向美国以外的合格用户。{G:pr_options|for eligible users outside the country}你需要自己的券商通道，这是我的判断。{I}</li>
+</ul>
+<h3>7.3 无论走哪条路都绕不开的条件（我的推论）</h3>
+<ul>
+<li><b>牌照与客户范围</b>：你对谁、在哪个司法辖区提供什么产品，决定要什么牌照；你不能借用币安的牌照。{I}</li>
+<li><b>对冲资金与风控</b>：在币安开对冲账户需要 USDT 保证金，面对单一交易所对手风险；对冲腿要有合约被下架的退出预案。{I}</li>
+<li><b>价格源策略</b>：你的标记价和结算价要有自己的来源，可以参考币安的多源加权设计，但不要只复制币安价格。{I}</li>
+<li><b>数据授权</b>：美股行情再分发通常有交易所数据授权费用；币安公开指数价是否允许你二次商用，没查到条款。{U}</li>
+<li><b>休市风险</b>：周末与盘后你的产品还在交易，币安对冲腿也在交易，但真实标的不开盘；周一跳空时双方都承担风险。{I}</li>
+<li><b>平台集中度</b>：币安是否保留随时调整杠杆、费率、下架合约、限制 API 的权利，我没读条款原文，也没查到公开的 SLA。{U}</li>
+</ul>
+<h3>7.4 建议的下一步（不是投资建议）</h3>
+<ul>
+<li>先决定对客户是什么身份：只导流、做对手方、还是白标，三者所需牌照与资金差一个量级。{I}</li>
+<li>向币安商务确认：TradFi 永续是否计入返佣、白标是否开放 TradFi、对冲账户的持仓与 API 限额、指数价数据能否二次使用。{I}</li>
+<li>先用成交额排前几名的品种试点，不要一上来铺全部合约。{I}</li>
+</ul>
+</div>
+
+<h2 id="s8">我没查到、不要当已知的</h2>
+<!--AUTO:missing-->
+<ul>
+<li>股票和 ETF 永续的标记价公式与休市定价规则原文。{U}</li>
+<li>除黄金白银外，其他 TradFi 永续的提供主体与监管主体。{U}</li>
+<li>各品种完整杠杆分档与合约面值：接口需要登录，快照里没有。{U}</li>
+<li>bStocks 托管方名称、做市商；币安 FAQ 与学院页被挑战页拦住，脚本抓不到原文。{U}</li>
+<li>币安澳洲加密 CFD 的当前状态。{U}</li>
+<li>Binance Link 与白标的门槛数字、费用、是否覆盖 TradFi 永续。{U}</li>
+<li>币安指数价数据的二次商用条款。{U}</li>
+<li>币安全站（App、各地区站点、公告）有没有 CFD 或股票指数产品：本报告只扫了扫描范围表里的接口。{U}</li>
+</ul>
+
+<h2 id="s9">来源</h2>
+<!--AUTO:sources-->

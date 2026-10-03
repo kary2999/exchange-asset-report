@@ -165,26 +165,27 @@ def g_funding(ctx, arg):
 
 def g_weekend(ctx, arg):
     rows = []
-    win = ""
+    wd_days = set()
     for s in sel(ctx, arg):
         w = ctx.symbols[s].get("weekend")
         if not w:
             why = ctx.symbols[s].get("weekend_skipped_reason")
             if why:  # 脚本主动跳过（例如非 TradFi 永续）：写明原因，不要让作者去猜「数据缺失」的原因
-                rows.append([esc(s), '<span class="sub">不适用：%s</span>' % esc(why), "", "", "", ""])
+                rows.append([esc(s), '<span class="sub">不适用：%s</span>' % esc(why), "", "", "", "", ""])
             else:
-                rows.append([esc(s)] + [MISSING] * 5)
+                rows.append([esc(s)] + [MISSING] * 6)
             continue
-        win = "%s ~ %s UTC，平日=数据内完整的 UTC 周一到周四（%d 天）" % (esc(w["window_utc"][0]), esc(w["window_utc"][1]), w["weekday_days"])
-        rows.append([esc(s), "%.1f%%" % w["vol_ratio_pct"], "%.2f%%" % w["weekend_range_pct"],
-                     "%.2f%%" % w["weekday_avg_daily_range_pct"],
+        wd_days.add(w["weekday_days"])
+        # 不同资产类别的休市窗口不同（商品、外汇、股票/ETF），窗口必须逐行显示，不能只显示最后一个
+        rows.append([esc(s), "%s ~ %s" % (esc(w["window_utc"][0]), esc(w["window_utc"][1])), "%.1f%%" % w["vol_ratio_pct"],
+                     "%.2f%%" % w["weekend_range_pct"], "%.2f%%" % w["weekday_avg_daily_range_pct"],
                      num(w["reopen_gap_pct"], 2, "%"), usd(w["weekend_vol_per_h"]) + " / " + usd(w["weekday_vol_per_h"])])
     if not rows:
         return MISSING
-    if not win:
-        win = "无可计算的窗口"
-    return '<p class="sub">休市窗口：%s。%s</p>' % (win, TAGS["{V}"]) + table(
-        ["合约", "周末每小时成交 ÷ 平日", "周末高低差", "平日单日平均高低差", "窗口前收盘到窗口后开盘跳空", "周末/平日 每小时成交额"], rows)
+    note = "窗口（UTC）逐行显示，商品、外汇、股票和 ETF 的休市窗口不同；平日=数据内完整的 UTC 周一到周四（%s 天）。" % (
+        "、".join(str(x) for x in sorted(wd_days)) or "无")
+    return '<p class="sub">%s%s</p>' % (note, TAGS["{V}"]) + table(
+        ["合约", "休市窗口（UTC）", "周末每小时成交 ÷ 平日", "周末高低差", "平日单日平均高低差", "窗口前收盘到窗口后开盘跳空", "周末/平日 每小时成交额"], rows)
 
 
 def g_sessions(ctx, arg):

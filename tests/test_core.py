@@ -209,6 +209,47 @@ class TestLedger(unittest.TestCase):
         self.assertEqual(sum(1 for l, r in rules if r == "I_EXPLAIN"), 1)   # 只有无限定的那句
 
 
+class TestRuleFalsePositives(unittest.TestCase):
+    """回归实测发现的规则假阳性：必须保持不误报。"""
+
+    def test_so_connective_and_ownership_not_flagged(self):
+        import claims
+        html = ('<ul><li>扫描范围见下表，表外的入口没扫，所以不能推到全站没有。<span class="tag">推论</span></li>'
+                '<li>报道写这些合约参考股票价格，但不授予股票所有权。<span class="tag g" data-cite="a|b" data-covers="x">转述</span><span class="tag g" data-cite="a|b" data-covers="x"></span></li></ul>')
+        iss, _ = claims.analyze(html)
+        self.assertEqual([r for _, r, _ in iss if r in ("I_EXPLAIN", "G_GENERALIZE")], [])
+
+
+class TestBacktestFixes(unittest.TestCase):
+    def test_weekend_windows_shown_per_row(self):
+        import build_report
+        w = lambda a, b: {"window_utc": [a, b], "weekend_hours": 49, "weekday_days": 12, "weekend_vol_per_h": 1.0, "weekday_vol_per_h": 2.0,
+                          "vol_ratio_pct": 50.0, "weekend_range_pct": 1.0, "weekday_avg_daily_range_pct": 2.0, "reopen_gap_pct": 0.1}
+        ctx = build_report.Ctx([{"meta": {}, "symbols": {"AUSDT": {"weekend": w("2026-09-25 21:00", "2026-09-27 22:00")},
+                                                       "BUSDT": {"weekend": w("2026-09-26 00:00", "2026-09-28 00:00")}}}])
+        out = build_report.g_weekend(ctx, "")
+        self.assertIn("2026-09-25 21:00 ~ 2026-09-27 22:00", out)
+        self.assertIn("2026-09-26 00:00 ~ 2026-09-28 00:00", out)
+
+    def test_funding_earliest_interval(self):
+        class F:
+            missing = []
+
+            def get(self, url, note=""):
+                if "startTime" in url:
+                    t0 = int(dt.datetime(2026, 4, 1, 0, tzinfo=UTC).timestamp() * 1000)
+                    return [{"fundingTime": t0, "fundingRate": "0"}, {"fundingTime": t0 + 4 * 3600 * 1000, "fundingRate": "0"},
+                            {"fundingTime": t0 + 8 * 3600 * 1000, "fundingRate": "0"}]
+                return None
+        out = bd.fetch_symbol(F(), "CLUSDT", 10, 10, onboard_ms=1)
+        self.assertEqual(out["funding_earliest"]["interval_hours"], 4.0)
+
+    def test_skill_md_has_version_notice(self):
+        txt = open(os.path.join(ROOT, "SKILL.md"), encoding="utf-8").read()
+        self.assertIn("版本核对", txt)
+        self.assertIn("ledger.py", txt)
+
+
 class TestBasis(unittest.TestCase):
     def test_basis(self):
         spot = [{"t": 1, "c": 101.0}, {"t": 2, "c": 99.0}]

@@ -332,7 +332,7 @@ def build_survey(f, fapi_ex):
 
 # ---------- 取数 ----------
 
-def fetch_symbol(f, sym, funding_n, kline_n):
+def fetch_symbol(f, sym, funding_n, kline_n, onboard_ms=None):
     out = {"symbol": sym}
     t = f.get(FAPI + "ticker/24hr?symbol=" + sym, "ticker")
     p = f.get(FAPI + "premiumIndex?symbol=" + sym, "premiumIndex")
@@ -377,6 +377,12 @@ def fetch_symbol(f, sym, funding_n, kline_n):
             f.missing.append({"url": FAPI + "fundingRate?symbol=" + sym, "error": "返回空列表", "note": "fundingRate"})
         else:
             out["funding"] = fs
+    if onboard_ms:  # 上线后最早的几条资金费记录：结算周期是否一直没变（用来核对新闻与接口的冲突）
+        fe = f.get(FAPI + "fundingRate?symbol=%s&startTime=%d&limit=3" % (sym, int(onboard_ms)), "fundingRate earliest")
+        if fe and len(fe) >= 2:
+            ts = [x["fundingTime"] for x in fe]
+            out["funding_earliest"] = {"times_utc": [dt.datetime.fromtimestamp(t / 1000, UTC).strftime("%Y-%m-%d %H:%M") for t in ts],
+                                       "interval_hours": round((ts[1] - ts[0]) / 3.6e6, 2)}
     k = f.get(FAPI + "klines?symbol=%s&interval=1h&limit=%d" % (sym, kline_n), "klines")
     if k is not None:
         if k:
@@ -450,7 +456,7 @@ def main():
     snap["symbols"] = {}
     fundinginfo = {x["symbol"]: x for x in (f.get(FAPI + "fundingInfo", "fundingInfo") or [])}
     for s in syms:
-        d = fetch_symbol(f, s, a.funding_n, a.kline_n)
+        d = fetch_symbol(f, s, a.funding_n, a.kline_n, info[s].get("onboardDate"))
         i = info[s]
         d["underlying_type"] = i.get("underlyingType")
         d["contract_type"] = i.get("contractType")
